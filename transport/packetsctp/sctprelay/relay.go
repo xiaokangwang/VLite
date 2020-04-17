@@ -83,6 +83,8 @@ type PacketSCTPRelay struct {
 	ratelimitServerTCPWriteBytePerSecond int
 	ratelimitServerTCPWriteMaxBucketSize int
 	ratelimitServerTCPWriteInitialSize   int
+
+	packetReceivingFrontier *filteredConn.FilteredConn
 }
 
 var cipherSuiteIDS = []dtls.CipherSuiteID{dtls.TLS_PSK_WITH_AES_128_CCM_8}
@@ -108,7 +110,7 @@ func (s *PacketSCTPRelay) tlsopenServer() {
 		SRTPProtectionProfiles: nil,
 		ClientAuth:             0,
 		ExtendedMasterSecret:   dtls.RequireExtendedMasterSecret,
-		FlightInterval:         time.Second*4,
+		FlightInterval:         time.Second * 4,
 		PSK: func(i2 []byte) (i []byte, err error) {
 			return s.Password, nil
 		},
@@ -267,7 +269,7 @@ func NewBufferedConn(str io.ReadWriteCloser) *BufferedConn {
 	return r
 }
 
-func (b* BufferedConn) RateLimitWrite(rl *ratelimit.Bucket) {
+func (b *BufferedConn) RateLimitWrite(rl *ratelimit.Bucket) {
 	b.rl = rl
 }
 
@@ -379,5 +381,10 @@ func (s *PacketSCTPRelay) PacketTx() {
 }
 
 func (s *PacketSCTPRelay) getConn(conn net.Conn) net.Conn {
-	return filteredConn.NewFilteredConn(conn, s.TxDataChannel, s.RxChannel, s.ctx)
+
+	if s.packetReceivingFrontier == nil {
+		s.packetReceivingFrontier = filteredConn.NewFilteredConn(conn, s.TxDataChannel, s.RxChannel, s.ctx)
+	}
+
+	return s.packetReceivingFrontier
 }
