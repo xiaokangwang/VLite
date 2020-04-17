@@ -17,15 +17,17 @@ import (
 
 func UDPServer(context context.Context,
 	TxToClient chan UDPServerTxToClientTraffic, TxToClientData chan UDPServerTxToClientDataTraffic,
-	RxFromClient chan UDPServerRxFromClientTraffic) *UDPServerContext {
+	RxFromClient chan UDPServerRxFromClientTraffic,
+	GetTransmitLayerSentRecvStatsInt interfaces.GetTransmitLayerSentRecvStats) *UDPServerContext {
 
 	usc := &UDPServerContext{
-		TrackedRemoteAddr:     sync.Map{},
-		ClientLogicConnection: sync.Map{},
-		TxToClient:            TxToClient,
-		TxToClientData:        TxToClientData,
-		RxFromClient:          RxFromClient,
-		context:               context,
+		TrackedRemoteAddr:                sync.Map{},
+		ClientLogicConnection:            sync.Map{},
+		TxToClient:                       TxToClient,
+		TxToClientData:                   TxToClientData,
+		RxFromClient:                     RxFromClient,
+		context:                          context,
+		GetTransmitLayerSentRecvStatsInt: GetTransmitLayerSentRecvStatsInt,
 	}
 
 	usc.ChannelNumberGenerator = channelNumberFinder.NewChannelNumberFinder(0, 0, usc)
@@ -54,6 +56,8 @@ type UDPServerContext struct {
 	opts UDPServerContext_Opts
 
 	context context.Context
+
+	GetTransmitLayerSentRecvStatsInt interfaces.GetTransmitLayerSentRecvStats
 }
 
 type UDPServerContext_Opts struct {
@@ -119,7 +123,7 @@ func (uscc *UDPServerContext) RxFromClientWorker() {
 					uscc.rxFromClientWorker_OnControlAssociateDone(payloadData)
 					break
 				case proto.CommandByte_Ping:
-					uscc.sendPong()
+					uscc.sendPong(payloadData)
 				}
 			} else {
 				//Decode this as a data packet
@@ -132,7 +136,27 @@ func (uscc *UDPServerContext) RxFromClientWorker() {
 	}
 }
 
-func (uscc *UDPServerContext) sendPong() {
+func (uscc *UDPServerContext) sendPong(reader io.Reader) {
+	PingHeader := &proto.PingHeader{}
+
+	err0 := struc.Unpack(reader, PingHeader)
+
+	if err0 != nil {
+		println(err0.Error())
+		return
+	}
+
+	PongHeader := &proto.PongHeader{}
+
+	PongHeader.SeqCopy = PingHeader.Seq
+	PongHeader.Seq2Copy = PingHeader.Seq2
+
+	if uscc.GetTransmitLayerSentRecvStatsInt != nil {
+		sent, recv := uscc.GetTransmitLayerSentRecvStatsInt.GetTransmitLayerSentRecvStats()
+		PongHeader.SentPacket = sent
+		PongHeader.RecvPacket = recv
+	}
+
 	var buf bytes.Buffer
 
 	Header := &proto.CommandHeader{CommandByte: proto.CommandByte_Pong}
@@ -141,6 +165,14 @@ func (uscc *UDPServerContext) sendPong() {
 
 	if err != nil {
 		println(err)
+		return
+	}
+
+	err2 := struc.Pack(&buf, PongHeader)
+
+	if err2 != nil {
+		println(err2)
+		return
 	}
 
 	uscc.TxToClient <- UDPServerTxToClientTraffic{Channel: 0, Payload: buf.Bytes()}

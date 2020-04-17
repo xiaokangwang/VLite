@@ -50,12 +50,12 @@ type UdptlsSctpClientStramToNetConnAdp struct {
 
 func (u UdptlsSctpClientStramToNetConnAdp) Read(b []byte) (n int, err error) {
 	/*
-	n2, err2 := u.rwc.Read(b)
-	if err2 != nil {
-		fmt.Println(err2)
-		return 0, io.EOF
-	}
-	return n2, nil*/
+		n2, err2 := u.rwc.Read(b)
+		if err2 != nil {
+			fmt.Println(err2)
+			return 0, io.EOF
+		}
+		return n2, nil*/
 
 	return u.rwc.Read(b)
 }
@@ -63,13 +63,13 @@ func (u UdptlsSctpClientStramToNetConnAdp) Read(b []byte) (n int, err error) {
 func (u UdptlsSctpClientStramToNetConnAdp) Write(b []byte) (n int, err error) {
 
 	/*
-	n2, err2 := u.rwc.Write(b)
-	if err2 != nil {
-		fmt.Println(err2)
-		return n2, io.EOF
-	}
+		n2, err2 := u.rwc.Write(b)
+		if err2 != nil {
+			fmt.Println(err2)
+			return n2, io.EOF
+		}
 
-	return n2, nil*/
+		return n2, nil*/
 
 	return u.rwc.Write(b)
 }
@@ -215,7 +215,7 @@ func (s *UdptlsSctpClient) Up() {
 	s.st = stack2
 
 	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, s.ctx)
-	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun)
+	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
 }
 
 type TCPSocketDialer interface {

@@ -7,6 +7,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
+	"github.com/xiaokangwang/VLite/transport/transportQuality"
 	"io"
 	"log"
 	"net"
@@ -20,17 +21,20 @@ func UDPClient(context context.Context,
 	TxToServerData chan UDPClientTxToServerDataTraffic,
 	RxFromServer chan UDPClientRxFromServerTraffic,
 	LocalTxToTun chan interfaces.UDPPacket,
-	LocalRxFromTun chan interfaces.UDPPacket) *UDPClientContext {
+	LocalRxFromTun chan interfaces.UDPPacket,
+	GetTransmitLayerSentRecvStatsInt interfaces.GetTransmitLayerSentRecvStats) *UDPClientContext {
 	ucc := &UDPClientContext{
-		TrackedChannel: sync.Map{},
-		TrackedAddr:    sync.Map{},
-		TxToServer:     TxToServer,
-		TxToServerData: TxToServerData,
-		RxFromServer:   RxFromServer,
-		context:        context,
-		LocalTxToTun:   LocalTxToTun,
-		LocalRxFromTun: LocalRxFromTun,
-		LastPongRecv:   time.Now(),
+		TrackedChannel:                   sync.Map{},
+		TrackedAddr:                      sync.Map{},
+		TxToServer:                       TxToServer,
+		TxToServerData:                   TxToServerData,
+		RxFromServer:                     RxFromServer,
+		context:                          context,
+		LocalTxToTun:                     LocalTxToTun,
+		LocalRxFromTun:                   LocalRxFromTun,
+		LastPongRecv:                     time.Now(),
+		QualityInt:                       transportQuality.NewQualityEstimator(),
+		GetTransmitLayerSentRecvStatsInt: GetTransmitLayerSentRecvStatsInt,
 	}
 	go ucc.RxFromServerWorker()
 	go ucc.TxToServerWorker()
@@ -52,6 +56,12 @@ type UDPClientContext struct {
 	LocalRxFromTun chan interfaces.UDPPacket
 
 	LastPongRecv time.Time
+
+	GetTransmitLayerSentRecvStatsInt interfaces.GetTransmitLayerSentRecvStats
+
+	pingSeq uint64
+
+	QualityInt interfaces.QualityEstimator
 }
 
 type UDPClientTxToServerTraffic interfaces.TrafficWithChannelTag
@@ -108,6 +118,26 @@ func (ucc *UDPClientContext) sendPing() {
 		println(err)
 	}
 
+	ucc.pingSeq += 1
+
+	PingHeader := &proto.PingHeader{}
+	PingHeader.Seq = ucc.pingSeq
+	PingHeader.Seq2 = uint64(time.Now().UnixNano())
+
+	if ucc.GetTransmitLayerSentRecvStatsInt != nil {
+		sent, recv := ucc.GetTransmitLayerSentRecvStatsInt.GetTransmitLayerSentRecvStats()
+		PingHeader.SentPacket = sent
+		PingHeader.RecvPacket = recv
+	}
+
+	err2 := struc.Pack(&buf, PingHeader)
+
+	if err2 != nil {
+		println(err2)
+	}
+
+	ucc.QualityInt.OnSendPing(*PingHeader)
+
 	ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: buf.Bytes()}
 }
 
@@ -138,6 +168,7 @@ func (ucc *UDPClientContext) RxFromServerWorker() {
 					break
 				case proto.CommandByte_Pong:
 					ucc.LastPongRecv = time.Now()
+					ucc.rxFromServerWorker_OnControlPong(payloadData)
 					break
 				}
 			} else {
@@ -147,6 +178,20 @@ func (ucc *UDPClientContext) RxFromServerWorker() {
 			return
 		}
 	}
+}
+
+func (ucc *UDPClientContext) rxFromServerWorker_OnControlPong(reader io.Reader) {
+	pongHeader := &proto.PongHeader{}
+
+	err := struc.Unpack(reader, pongHeader)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	//We send this into insight
+
+	ucc.QualityInt.OnReceivePong(*pongHeader)
 }
 
 func (ucc *UDPClientContext) rxFromServerWorker_OnControlSend(reader io.Reader) {

@@ -134,5 +134,5 @@ func (s *UdptlsSctpClientDirect) Up() {
 	s.TunnelRxFromTun = TunnelRxFromTun
 
 	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, s.ctx)
-	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun)
+	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun,s.udprelay)
 }

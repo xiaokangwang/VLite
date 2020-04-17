@@ -86,7 +86,7 @@ func (s *UdptlsSctpServer) Process(conn net.Conn) {
 
 	_ = relay
 
-	udpserver := server.UDPServer(s.ctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic)
+	udpserver := server.UDPServer(s.ctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
 
 	_ = udpserver
 

@@ -70,6 +70,7 @@ const (
 	CommandByte_Stream_ConnectV6IP
 	CommandByte_Stream_ConnectDomain
 )
+
 type StreamConnectDomainHeaderLen struct {
 	Length uint16 `struc:"uint16"`
 }
@@ -79,4 +80,17 @@ type StreamConnectDomainHeader struct {
 	DestDomain_len uint16 `struc:"uint16,sizeof=DestDomain"`
 	DestDomain     string `struc:"[]byte"`
 	DestPort       uint16 `struc:"uint16"`
+}
+
+type PingHeader struct {
+	Seq        uint64 `struc:"uint64"`
+	Seq2       uint64 `struc:"uint64"`
+	SentPacket uint64 `struc:"uint64"`
+	RecvPacket uint64 `struc:"uint64"`
+}
+type PongHeader struct {
+	SeqCopy    uint64 `struc:"uint64"`
+	Seq2Copy   uint64 `struc:"uint64"`
+	SentPacket uint64 `struc:"uint64"`
+	RecvPacket uint64 `struc:"uint64"`
 }
