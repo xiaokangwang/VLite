@@ -26,9 +26,7 @@ func (qe *QualityEstimator) OnReceivePong(pong proto.PongHeader) {
 
 	timePassed := uint64(time.Now().UnixNano()) - qe.lastPing.Seq2
 
-	timePassedTime := time.Duration(timePassed)
-
-	RTT := float64(timePassedTime.Milliseconds()) / float64(time.Millisecond/time.Microsecond)
+	RTT := float64(timePassed) / float64(1e6)
 
 	PacketLossingTx := float64(float64(qe.lastPing.SentPacket)-float64(pong.RecvPacket)) / float64(qe.lastPing.SentPacket)
 
