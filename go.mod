@@ -20,6 +20,7 @@ require (
 	github.com/txthinking/x v0.0.0-20200330144832-5ad2416896a9 // indirect
 	github.com/xiaokangwang/water v0.0.0-20180524022535-3e9597577724
 	github.com/xtaci/smux v1.5.12
+	golang.org/x/crypto v0.0.0-20200414173820-0848c9571904
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 )
 
