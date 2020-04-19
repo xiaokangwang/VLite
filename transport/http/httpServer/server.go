@@ -1,6 +1,7 @@
 package httpServer
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
@@ -10,6 +11,9 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
+
+	mrand "math/rand"
 )
 
 func NewProviderServerSide(listenaddr string, password string, Uplistener transport.UnderlayTransportListener) *ProviderServerSide {
@@ -63,6 +67,47 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	if beardata == nil {
 		http.NotFound(rw, r)
 		return
+	}
+
+	if beardata.ConnID == [24]byte{0x00} {
+		if r.Method == "GET" {
+			fmt.Println("GET Test")
+			if beardata.Masker >= (1 << 24) {
+				http.NotFound(rw, r)
+				return
+			}
+			rw.Header().Add("X-Accel-Buffering", "no")
+			size := int(beardata.Masker)
+			if WriteBufferSize == 0 {
+				wrapper.TestBufferSizePayload(size, mrand.New(mrand.NewSource(time.Now().UnixNano())), rw)
+			} else {
+				bufw := bufio.NewWriterSize(rw, WriteBufferSize)
+
+				rw.WriteHeader(200)
+
+				wrapper.TestBufferSizePayload(size, mrand.New(mrand.NewSource(time.Now().UnixNano())), bufw)
+
+				err := bufw.Flush()
+				if err != nil {
+					fmt.Println(err)
+				}
+
+			}
+			return
+		}
+
+		if r.Method == "POST" {
+			fmt.Println("POST Test")
+			if beardata.Masker >= (1 << 24) {
+				http.NotFound(rw, r)
+				return
+			}
+			size := int(beardata.Masker)
+			result := wrapper.TestBufferSizePayloadClient(size, r.Body, time.Now())
+			rw.WriteHeader(500 + result)
+			r.Body.Close()
+			return
+		}
 	}
 
 	ppsd := &ProviderConnServerSide{}
@@ -122,6 +167,11 @@ func (pcn *ProviderConnServerSide) Post(rw http.ResponseWriter, r *http.Request,
 	wrapper.ReceivePacketOverReader(masker, r.Body, pcn.RxChan)
 	r.Body.Close()
 }
+
+var WriteBufferSize = 0
+
 func (pcn *ProviderConnServerSide) Get(rw http.ResponseWriter, r *http.Request, masker int64) {
+	rw.Header().Add("X-Accel-Buffering", "no")
+
 	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering)
 }

@@ -1,6 +1,7 @@
 package httpClient
 
 import (
+	"bufio"
 	"crypto/rand"
 	"fmt"
 	"github.com/xiaokangwang/VLite/proto"
@@ -133,6 +134,23 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64) {
 	}
 }
 
+func (pc *ProviderClient) reqprepareTest(req *http.Request, masking int64) {
+	req.Header.Set("User-Agent", "")
+
+	ph := proto.HttpHeaderHolder{
+		Masker: masking,
+	}
+	BearToken := pc.hh.Seal(ph)
+
+	switch pc.authlocation {
+	case httpconsts.Authlocation_Header:
+		req.Header.Set("Authorization", "Bearer "+BearToken)
+		break
+	case httpconsts.Authlocation_Path:
+		req.URL.Path = "/" + BearToken
+	}
+}
+
 func (pc *ProviderClient) prepareHTTP() (int64, *io.PipeReader, *io.PipeWriter) {
 	masking := mrand.Int63()
 
@@ -184,4 +202,71 @@ func (pc *ProviderClient) DialRxConnection() {
 
 func (pc *ProviderClient) AsConn() net.Conn {
 	return adp.NewRxTxToConn(pc.TxChan, pc.RxChan, pc)
+}
+
+func (pc *ProviderClient) DialRxTestConnection(TestSize int) int {
+	hc := pc.getHttpClient()
+
+	req, err := http.NewRequest("GET", pc.HttpRequestEndpoint, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return -3
+	}
+
+	pc.reqprepareTest(req, int64(TestSize))
+
+	timenow := time.Now()
+
+	resp, err4 := hc.Do(req)
+	if err4 != nil {
+		fmt.Println(err4.Error())
+		return -3
+	}
+	if resp.StatusCode != 200 {
+		fmt.Println(resp.Status)
+	}
+
+	result := wrapper.TestBufferSizePayloadClient(TestSize, resp.Body, timenow)
+
+	resp.Body.Close()
+
+	return result
+}
+
+var WriteBufferSize = 0
+
+func (pc *ProviderClient) DialTxConnectionTest(TestSize int) int {
+
+	hc := pc.getHttpClient()
+
+	_, preader, pwriter := pc.prepareHTTP()
+	if WriteBufferSize == 0 {
+		go wrapper.TestBufferSizePayload(TestSize, mrand.New(mrand.NewSource(time.Now().UnixNano())), pwriter)
+	} else {
+		bufw := bufio.NewWriterSize(pwriter, WriteBufferSize)
+		go wrapper.TestBufferSizePayload(TestSize, mrand.New(mrand.NewSource(time.Now().UnixNano())), bufw)
+		go func() {
+			time.Sleep(time.Second * 12)
+			bufw.Flush()
+			pwriter.Close()
+		}()
+	}
+
+	req, err := http.NewRequest("POST", pc.HttpRequestEndpoint, preader)
+	if err != nil {
+		fmt.Println(err.Error())
+		return -3
+	}
+
+	pc.reqprepareTest(req, int64(TestSize))
+
+	resp, err4 := hc.Do(req)
+	if err4 != nil {
+		fmt.Println(err4.Error())
+		return -3
+	}
+
+	result := resp.StatusCode - 500
+	resp.Body.Close()
+	return result
 }

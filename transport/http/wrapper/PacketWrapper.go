@@ -50,7 +50,7 @@ func ReceivePacketOverReader(lengthMask int64, reader io.Reader, sendingChan cha
 func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan []byte, networkBuffering int) {
 	src := rand.NewSource(lengthMask)
 	lenmaskSource := rand.New(src)
-	fillInterval := time.Millisecond * 20
+	fillInterval := time.Millisecond * 80
 	timer := time.NewTimer(fillInterval)
 	var bytesSendInThisInterval int
 	var payloadSentInThisInterval bool
@@ -68,7 +68,7 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 				continue
 			}
 			if payloadSentInThisInterval {
-				done, overfill := sendFill(networkBuffering-(networkBuffering+bytesSendInThisInterval%networkBuffering), lenmaskSource, writer)
+				done, overfill := sendFill(networkBuffering, lenmaskSource, writer)
 				if done {
 					return
 				}
@@ -106,6 +106,7 @@ func sendFill(fillLength int, lenmaskSource *rand.Rand, writer io.Writer) (bool,
 
 	return false, overfill
 }
+
 func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) bool {
 	l := &proto.HTTPLenHeader{}
 	l.Length = int64(len(sending))
@@ -139,3 +140,92 @@ func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) boo
 	}
 	return false
 }
+
+func TestBufferSizePayload(sendingSize int, lenmaskSource *rand.Rand, writer io.Writer) {
+	buf1 := make([]byte, sendingSize-1)
+	buf2 := make([]byte, 1)
+
+	io.ReadFull(lenmaskSource, buf1)
+	io.ReadFull(lenmaskSource, buf2)
+
+	//First Send
+
+	io.Copy(writer, bytes.NewReader(buf1))
+
+	if f, ok := writer.(http.Flusher); ok {
+		_ = f
+		f.Flush()
+	} else {
+		//log.Println("Cannot flush writer")
+	}
+
+	time.Sleep(4 * time.Second)
+
+	io.Copy(writer, bytes.NewReader(buf2))
+
+	if f, ok := writer.(http.Flusher); ok {
+		_ = f
+		f.Flush()
+	} else {
+		//log.Println("Cannot flush writer")
+	}
+
+	time.Sleep(6 * time.Second)
+
+	if f, ok := writer.(*io.PipeWriter); ok {
+		_ = f
+		f.Close()
+	} else {
+		//log.Println("Cannot flush writer")
+	}
+
+	return
+}
+
+func TestBufferSizePayloadClient(sendingSize int, reader io.Reader, reqtime time.Time) int {
+	var buf [65536]byte
+	readen := 0
+
+	n, err := reader.Read(buf[:])
+	if err != nil && err != io.EOF {
+		return -2
+	}
+	readen += n
+	readentime := time.Now()
+
+	if n < sendingSize {
+		remainSize := sendingSize - readen
+		_, err2 := io.ReadFull(reader, buf[:remainSize])
+		if err2 != nil && err2 != io.EOF {
+			return -2
+		}
+	}
+
+	FullreadTime := time.Now()
+
+	t1 := readentime.Sub(reqtime).Seconds()
+
+	t2 := FullreadTime.Sub(readentime).Seconds()
+
+	t3 := FullreadTime.Sub(reqtime).Seconds()
+
+	if t1 < 3 {
+		return ShorterThanExpected //Buffer Shorter than expected
+	}
+
+	if t2 <= 5 && t2 >= 3 {
+		return Exact //Exact Buffer Size
+	}
+
+	if t3 > 9 {
+		return LongerThanExpected //Buffer Longer than expected
+	}
+
+	return -1
+}
+
+const (
+	ShorterThanExpected = 3
+	Exact               = 1
+	LongerThanExpected  = 2
+)
