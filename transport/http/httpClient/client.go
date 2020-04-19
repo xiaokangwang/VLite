@@ -16,6 +16,32 @@ import (
 	"time"
 )
 
+func NewProviderClientCreator(HttpRequestEndpoint string,
+	MaxTxConnection int,
+	MaxRxConnection int,
+	password string) *ProviderClientCreator {
+	return &ProviderClientCreator{
+		HttpRequestEndpoint: HttpRequestEndpoint,
+		MaxRxConnection:     MaxRxConnection,
+		MaxTxConnection:     MaxTxConnection,
+		password:            password,
+	}
+}
+
+type ProviderClientCreator struct {
+	HttpRequestEndpoint string
+	MaxTxConnection     int
+	MaxRxConnection     int
+	password            string
+}
+
+func (p ProviderClientCreator) Connect() (net.Conn, error) {
+	return NewProviderClient(p.HttpRequestEndpoint,
+		p.MaxTxConnection,
+		p.MaxRxConnection,
+		p.password).AsConn(), nil
+}
+
 func NewProviderClient(HttpRequestEndpoint string,
 	MaxTxConnection int,
 	MaxRxConnection int,

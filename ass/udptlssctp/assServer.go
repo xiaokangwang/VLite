@@ -3,11 +3,13 @@ package udptlssctp
 import (
 	"context"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/transport/http/httpServer"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpServer"
 	"github.com/xiaokangwang/VLite/workers/server"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpServer"
 	"net"
+	"strings"
 )
 
 func NewUdptlsSctpServer(localAddress string, password string, ctx context.Context) *UdptlsSctpServer {
@@ -94,8 +96,15 @@ func (s *UdptlsSctpServer) Process(conn net.Conn) {
 }
 func (s *UdptlsSctpServer) Up() {
 	//Open Connection
-	var v = udpServer.NewUDPServer(s.Address, s.ctx, s)
-	s.udplistener = v
+	if strings.HasPrefix(s.Address, "http") {
+		address := s.Address[4:]
+		var v = httpServer.NewProviderServerSide(address, string(s.password), s)
+		s.udplistener = v
+	} else {
+		var v = udpServer.NewUDPServer(s.Address, s.ctx, s)
+		s.udplistener = v
+	}
+
 }
 
 func (s *UdptlsSctpServer) RateLimitTcpServerWrite(ratelimitServerTCPWriteBytePerSecond int,

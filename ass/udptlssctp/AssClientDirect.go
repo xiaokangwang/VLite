@@ -9,12 +9,14 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
+	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpClient"
 	"log"
 	"net"
+	"strings"
 )
 
 func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx context.Context) *UdptlsSctpClientDirect {
@@ -22,7 +24,11 @@ func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx contex
 	utsc.Address = remoteAddress
 	utsc.password = []byte(password)
 	utsc.ctx = ctx
-	utsc.udpdialer = udpClient.NewUdpClient(remoteAddress)
+	if strings.HasPrefix(remoteAddress, "http") {
+		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password)
+	} else {
+		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress)
+	}
 	return utsc
 }
 
@@ -134,5 +140,5 @@ func (s *UdptlsSctpClientDirect) Up() {
 	s.TunnelRxFromTun = TunnelRxFromTun
 
 	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, s.ctx)
-	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun,s.udprelay)
+	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
 }

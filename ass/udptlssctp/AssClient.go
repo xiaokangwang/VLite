@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/clientInbound/stack"
 	"github.com/xiaokangwang/VLite/clientInbound/tun"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
+	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -29,7 +30,11 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 	utsc.Address = remoteAddress
 	utsc.password = []byte(password)
 	utsc.ctx = ctx
-	utsc.udpdialer = udpClient.NewUdpClient(remoteAddress)
+	if strings.HasPrefix(remoteAddress, "http") {
+		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password)
+	} else {
+		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress)
+	}
 	return utsc
 }
 
@@ -162,7 +167,7 @@ func (s *UdptlsSctpClient) Up() {
 		for {
 			select {
 			case data := <-C_C2STraffic:
-				spew.Dump(data)
+				//spew.Dump(data)
 				C_C2STraffic2 <- interfaces.TrafficWithChannelTag(data)
 			case <-ctx.Done():
 				return
@@ -175,7 +180,7 @@ func (s *UdptlsSctpClient) Up() {
 		for {
 			select {
 			case data := <-C_C2SDataTraffic:
-				spew.Dump(data)
+				//spew.Dump(data)
 				C_C2SDataTraffic2 <- interfaces.TrafficWithChannelTag(data)
 			case <-ctx.Done():
 				return
@@ -188,7 +193,7 @@ func (s *UdptlsSctpClient) Up() {
 		for {
 			select {
 			case data := <-C_S2CTraffic2:
-				spew.Dump(data)
+				//spew.Dump(data)
 				C_S2CTraffic <- client2.UDPClientRxFromServerTraffic(data)
 			case <-ctx.Done():
 				return
