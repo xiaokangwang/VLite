@@ -6,6 +6,7 @@ import (
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
+	"github.com/xiaokangwang/VLite/transport/http/httpconsts"
 	"github.com/xiaokangwang/VLite/transport/http/wrapper"
 	"io"
 	mrand "math/rand"
@@ -22,9 +23,11 @@ func NewProviderClient(HttpRequestEndpoint string,
 		MaxRxConnection: MaxRxConnection,
 		MaxTxConnection: MaxTxConnection,
 		RxChan:          make(chan []byte, 8),
-		TxChan:          make(chan []byte, 8)}
+		TxChan:          make(chan []byte, 8),
+		authlocation:    httpconsts.Authlocation_Path}
 	id := make([]byte, 24)
 	io.ReadFull(rand.Reader, id)
+	prc.ID = id
 	prc.hh = headerHolder.NewHttpHeaderHolderProcessor(password)
 	go prc.StartConnections()
 	return prc
@@ -38,10 +41,12 @@ func (pc *ProviderClient) StartConnections() {
 			go pc.DialRxConnectionD()
 			more = true
 		}
-		if i < pc.MaxRxConnection {
-			go pc.DialRxConnectionD()
+		//<-time.NewTimer(time.Second).C
+		if i < pc.MaxTxConnection {
+			go pc.DialTxConnectionD()
 			more = true
 		}
+		i++
 		<-time.NewTimer(time.Second).C
 	}
 }
@@ -71,6 +76,8 @@ type ProviderClient struct {
 	hh *headerHolder.HttpHeaderHolderProcessor
 
 	closed bool
+
+	authlocation int
 }
 
 func (pc *ProviderClient) Close() error {
@@ -84,7 +91,7 @@ func (pc *ProviderClient) DialTxConnection() {
 
 	masking, preader, pwriter := pc.prepareHTTP()
 
-	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan)
+	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan, 0)
 
 	req, err := http.NewRequest("POST", pc.HttpRequestEndpoint, preader)
 	if err != nil {
@@ -96,24 +103,34 @@ func (pc *ProviderClient) DialTxConnection() {
 
 	resp, err4 := hc.Do(req)
 	if err4 != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err4.Error())
 		return
+	}
+
+	if resp.StatusCode != 200 {
+		fmt.Println(resp.Status)
 	}
 
 	resp.Body.Close()
 }
 
 func (pc *ProviderClient) reqprepare(req *http.Request, masking int64) {
-	req.Header.Del("User-Agent")
+	req.Header.Set("User-Agent", "")
 
 	ph := proto.HttpHeaderHolder{
 		Masker: masking,
-		ConnID: pc.ID,
 	}
-
+	mrand.Read(ph.Rand[:])
+	copy(ph.ConnID[:], pc.ID)
 	BearToken := pc.hh.Seal(ph)
 
-	req.Header.Set("Authorization", "Bearer "+BearToken)
+	switch pc.authlocation {
+	case httpconsts.Authlocation_Header:
+		req.Header.Set("Authorization", "Bearer "+BearToken)
+		break
+	case httpconsts.Authlocation_Path:
+		req.URL.Path = "/" + BearToken
+	}
 }
 
 func (pc *ProviderClient) prepareHTTP() (int64, *io.PipeReader, *io.PipeWriter) {
@@ -126,10 +143,10 @@ func (pc *ProviderClient) prepareHTTP() (int64, *io.PipeReader, *io.PipeWriter) 
 func (pc *ProviderClient) getHttpClient() http.Client {
 	transport := &http.Transport{Proxy: nil,
 		DialContext: (&net.Dialer{Timeout: 30 * time.Second,
-			KeepAlive: 30 * time.Second,}).DialContext,
+			KeepAlive: 30 * time.Second}).DialContext,
 		MaxIdleConns: 100, IdleConnTimeout: 90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,}
+		ExpectContinueTimeout: 1 * time.Second}
 
 	hc := http.Client{
 		Transport:     transport,
@@ -156,10 +173,12 @@ func (pc *ProviderClient) DialRxConnection() {
 
 	resp, err4 := hc.Do(req)
 	if err4 != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err4.Error())
 		return
 	}
-
+	if resp.StatusCode != 200 {
+		fmt.Println(resp.Status)
+	}
 	io.Copy(pwriter, resp.Body)
 }
 

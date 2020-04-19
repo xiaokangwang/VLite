@@ -15,7 +15,7 @@ require (
 	github.com/pion/dtls/v2 v2.0.0-rc.7
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.6
-	github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4 // indirect
+	github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4
 	github.com/stretchr/testify v1.5.1
 	github.com/txthinking/runnergroup v0.0.0-20200327135940-540a793bb997 // indirect
 	github.com/txthinking/socks5 v0.0.0-20200327133705-caf148ab5e9d

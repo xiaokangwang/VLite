@@ -20,12 +20,10 @@ func NewHttpHeaderHolderProcessor(password string) *HttpHeaderHolderProcessor {
 }
 
 type HttpHeaderHolderProcessor struct {
-	password  string
-	aeadBlock cipher.AEAD
+	password string
 }
 
-func (pc *HttpHeaderHolderProcessor) prepare() {
-	var err error
+func (pc *HttpHeaderHolderProcessor) prepare() cipher.AEAD {
 
 	hasher := sha3.NewCShake128(nil, []byte("HTTPHeaderSecret"))
 	hasher.Write([]byte(pc.password))
@@ -34,11 +32,12 @@ func (pc *HttpHeaderHolderProcessor) prepare() {
 
 	io.ReadFull(hasher, keyin[:])
 
-	pc.aeadBlock, err = siv.NewCMAC(keyin)
+	aeadBlock, err2 := siv.NewCMAC(keyin)
 
-	if err != nil {
-		fmt.Println(err.Error())
+	if err2 != nil {
+		fmt.Println(err2.Error())
 	}
+	return aeadBlock
 }
 func (pc *HttpHeaderHolderProcessor) Open(input string) *proto.HttpHeaderHolder {
 	inputb := bytes.NewBufferString(input)
@@ -48,7 +47,7 @@ func (pc *HttpHeaderHolderProcessor) Open(input string) *proto.HttpHeaderHolder 
 		fmt.Println(err)
 		return nil
 	}
-	opened, erro := pc.aeadBlock.Open(nil, nil, cont, nil)
+	opened, erro := pc.prepare().Open(nil, nil, cont, nil)
 	if erro != nil {
 		fmt.Println(err)
 		return nil
@@ -66,13 +65,13 @@ func (pc *HttpHeaderHolderProcessor) Open(input string) *proto.HttpHeaderHolder 
 func (pc *HttpHeaderHolderProcessor) Seal(src proto.HttpHeaderHolder) string {
 	var err error
 	buf := bytes.NewBuffer(nil)
-	err = struc.Pack(buf, src)
+	err = struc.Pack(buf, &src)
 	if err != nil {
 		fmt.Println(err)
 		return ""
 	}
 
-	sealed := pc.aeadBlock.Seal(nil, nil, buf.Bytes(), nil)
+	sealed := pc.prepare().Seal(nil, nil, buf.Bytes(), nil)
 
 	obuf := bytes.NewBuffer(nil)
 	decodeReader := base64.NewEncoder(base64.URLEncoding, obuf)

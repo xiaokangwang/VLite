@@ -95,12 +95,13 @@ type PongHeader struct {
 	RecvPacket uint64 `struc:"uint64"`
 }
 
+//WARNING: we assume this header is 8 byte! Since it is used to fill network buffer!
 type HTTPLenHeader struct {
 	Length int64 `struc:"int64"`
 }
 
-
 type HttpHeaderHolder struct {
-	Masker int64  `struc:"int64"`
-	ConnID []byte `struc:"[]byte,sizeof=24"`
+	Masker int64    `struc:"int64"`
+	ConnID [24]byte `struc:"[24]byte"`
+	Rand   [24]byte `struc:"[24]byte"`
 }
