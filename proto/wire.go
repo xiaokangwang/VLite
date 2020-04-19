@@ -94,3 +94,13 @@ type PongHeader struct {
 	SentPacket uint64 `struc:"uint64"`
 	RecvPacket uint64 `struc:"uint64"`
 }
+
+type HTTPLenHeader struct {
+	Length int64 `struc:"int64"`
+}
+
+
+type HttpHeaderHolder struct {
+	Masker int64  `struc:"int64"`
+	ConnID []byte `struc:"[]byte,sizeof=24"`
+}
