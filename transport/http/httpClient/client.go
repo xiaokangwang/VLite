@@ -75,6 +75,7 @@ type ProviderClient struct {
 
 func (pc *ProviderClient) Close() error {
 	pc.closed = true
+	return nil
 }
 
 func (pc *ProviderClient) DialTxConnection() {
