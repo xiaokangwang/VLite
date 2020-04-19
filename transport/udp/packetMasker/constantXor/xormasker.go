@@ -30,17 +30,20 @@ func (xm *XorMasker) prepare() {
 }
 func (xm *XorMasker) maskInternal(input io.Reader, output io.Writer) error {
 	var counter = 0
-	var buf [1]byte
+	var buf [1600]byte
 	for {
-		_, err := input.Read(buf[:])
+		n, err := input.Read(buf[:])
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
 		}
-		buf[0] ^= xm.MaskingPattern[counter]
-		_, err = output.Write(buf[:])
+		for i := 0; i < n; i++ {
+			buf[counter] ^= xm.MaskingPattern[counter]
+			counter++
+		}
+		_, err = output.Write(buf[:n])
 
 		if err != nil {
 			return err

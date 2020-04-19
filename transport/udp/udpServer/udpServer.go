@@ -34,6 +34,8 @@ type udpServer struct {
 	under transport.UnderlayTransportListener
 
 	remoteConnTracker sync.Map
+
+	masking string
 }
 
 func (u *udpServer) Listener() {
@@ -54,7 +56,10 @@ func (u *udpServer) Listener() {
 		if ok {
 			conn = connx.(*connImpl)
 		} else {
-			go u.under.Connection(conn)
+			usageConn := conn
+			//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
+
+			go u.under.Connection(usageConn)
 		}
 
 		conn.readchan <- bm[:c]

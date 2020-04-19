@@ -382,8 +382,10 @@ func (s *PacketSCTPRelay) PacketTx() {
 
 func (s *PacketSCTPRelay) getConn(conn net.Conn) net.Conn {
 
+	usageConn := conn
+
 	if s.packetReceivingFrontier == nil {
-		s.packetReceivingFrontier = filteredConn.NewFilteredConn(conn, s.TxDataChannel, s.RxChannel, s.ctx)
+		s.packetReceivingFrontier = filteredConn.NewFilteredConn(usageConn, s.TxDataChannel, s.RxChannel, s.ctx)
 	}
 
 	return s.packetReceivingFrontier

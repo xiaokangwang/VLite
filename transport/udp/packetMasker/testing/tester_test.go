@@ -231,3 +231,33 @@ func TestConnectionWithDoubleMaskerReverse(t *testing.T) {
 
 	assert.Equal(t, TestingIn, buf2[:n2])
 }
+
+
+func TestConnectionWithPrependMaskerCornerCaseZeroLengthPrefix(t *testing.T) {
+	Masker := prepend.NewPrependingMasker([]byte(""))
+
+	ZeroLayer := layers.NewSyntheticLayerMasker([]interfaces.Masker{Masker})
+	synconn := SynConnW{b: bytes.NewBuffer(nil)}
+	connadp := masker2conn.NewMaskerAdopter(ZeroLayer, synconn)
+	TestingIn := []byte("Testing Input")
+	TestingOut := []byte("Testing Input")
+	connadp.Write(TestingIn)
+	assert.Equal(t, TestingOut, synconn.b.Bytes())
+
+}
+
+func TestConnectionReadingWithPrependMaskerCornerCaseZeroLengthPrefix(t *testing.T) {
+	Masker := prepend.NewPrependingMasker([]byte(""))
+
+	ZeroLayer := layers.NewSyntheticLayerMasker([]interfaces.Masker{Masker})
+	TestingIn := []byte("Testing Input")
+	synconn := SynConnR{b: bytes.NewReader(TestingIn)}
+	connadp := masker2conn.NewMaskerAdopter(ZeroLayer, synconn)
+
+	var buf [65536]byte
+	n, err := connadp.Read(buf[:])
+	assert.Nil(t, err)
+
+	TestingOut := []byte("Testing Input")
+	assert.Equal(t, TestingOut, buf[:n])
+}

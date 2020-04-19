@@ -1,15 +1,24 @@
 package udpClient
 
-import "net"
+import (
+	"net"
+)
 
 func NewUdpClient(addr string) *udpClient {
-	return &udpClient{dest:addr}
+	return &udpClient{dest: addr}
 }
 
 type udpClient struct {
-	dest string
+	masking string
+	dest    string
 }
 
 func (u *udpClient) Connect() (net.Conn, error) {
-	return net.Dial("udp", u.dest)
+	conn, err := net.Dial("udp", u.dest)
+	if err != nil {
+		return nil, err
+	}
+	usageConn := conn
+	//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
+	return usageConn , nil
 }
