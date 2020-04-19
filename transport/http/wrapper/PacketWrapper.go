@@ -68,7 +68,7 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 				continue
 			}
 			if payloadSentInThisInterval {
-				done, overfill := sendFill(networkBuffering, lenmaskSource, writer)
+				done, overfill := sendFill(networkBuffering-(networkBuffering+bytesSendInThisInterval%networkBuffering), lenmaskSource, writer)
 				if done {
 					return
 				}
