@@ -6,6 +6,7 @@ require (
 	github.com/FlowerWrong/netstack v0.0.0-20191009041010-964b57cc9e6e
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/google/gopacket v1.1.17
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/juju/ratelimit v1.0.1
@@ -18,6 +19,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.6
 	github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4
+	github.com/seiflotfy/cuckoofilter v0.0.0-20200416141329-862a88987de7
 	github.com/stretchr/testify v1.5.1
 	github.com/txthinking/runnergroup v0.0.0-20200327135940-540a793bb997 // indirect
 	github.com/txthinking/socks5 v0.0.0-20200327133705-caf148ab5e9d

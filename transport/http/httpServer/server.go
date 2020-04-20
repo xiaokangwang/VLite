@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport"
+	"github.com/xiaokangwang/VLite/transport/antiReplayWindow"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
 	"github.com/xiaokangwang/VLite/transport/http/httpconsts"
@@ -128,6 +129,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	ppsd.RxChan = make(chan []byte, 8)
 	ppsd.TxChan = make(chan []byte, 8)
 	ppsd.pss = &pss
+	ppsd.noReplayChecker = antiReplayWindow.NewAntiReplayWindow(119)
 
 	a, ok := pss.clientSet.LoadOrStore(beardata.ConnID, ppsd)
 
@@ -137,6 +139,11 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 		connid := ppsd.ID[:]
 		connctx := context.WithValue(pss.ctx, interfaces.ExtraOptionsConnID, connid)
 		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx)
+	}
+
+	if !ppsd.noReplayChecker.Check(beardata.Rand[:]) {
+		http.NotFound(rw, r)
+		return
 	}
 
 	if r.Method == "GET" {
@@ -168,6 +175,8 @@ type ProviderConnServerSide struct {
 
 	//TODO WARNING this is actually a copy!
 	pss *ProviderServerSide
+
+	noReplayChecker *antiReplayWindow.AntiReplayWindow
 }
 
 func (pcn *ProviderConnServerSide) Close() error {
