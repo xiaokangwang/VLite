@@ -3,8 +3,13 @@ package filteredConn
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/connidutil"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/ibusTopic"
+	"github.com/xiaokangwang/VLite/interfaces/ibusInterface"
 	"github.com/xiaokangwang/VLite/proto"
 	"io/ioutil"
 	"log"
@@ -24,6 +29,7 @@ func NewFilteredConn(conn net.Conn,
 		ctx:           ctx,
 	}
 	go fc.WriteC()
+	go fc.connectionBoostRequester()
 	return fc
 }
 
@@ -38,11 +44,76 @@ type FilteredConn struct {
 	packetRecv uint64
 }
 
-func (fc *FilteredConn) GetPacketStatus() (uint64,uint64) {
+func (fc *FilteredConn) GetPacketStatus() (uint64, uint64) {
 	sent := atomic.LoadUint64(&fc.packetSent)
 	recv := atomic.LoadUint64(&fc.packetRecv)
 
-	return sent,recv
+	return sent, recv
+}
+
+//BLOCKING!!!
+func (fc *FilteredConn) connectionBoostRequester() {
+	sent, recv := fc.GetPacketStatus()
+
+	msgbus := ibus.MessageBusFromContext(fc.ctx)
+
+	connstr := connidutil.ConnIDToString(fc.ctx)
+
+	Boostchannel := ibusTopic.ConnBoostMode(connstr)
+
+	msgbus.RegisterTopics(Boostchannel)
+
+	ticker := time.NewTicker(time.Second)
+
+	HiTrafficCounter := 0
+
+	for {
+		select {
+		case <-fc.ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			sentn, recvn := fc.GetPacketStatus()
+
+			lastSecondTraffic := sent + recv
+
+			thisSecondTraffic := sentn + recvn
+
+			trafficFlow := thisSecondTraffic - lastSecondTraffic
+
+			//fmt.Println("traffic flow:", trafficFlow)
+
+			sent, recv = sentn, recvn
+
+			if trafficFlow > 4 {
+				HiTrafficCounter++
+				if trafficFlow > 8 {
+					HiTrafficCounter++
+				}
+				if trafficFlow > 16 {
+					HiTrafficCounter++
+				}
+
+				if HiTrafficCounter > 3 {
+					w := ibusInterface.ConnBoostMode{
+						Enable:         true,
+						TimeoutAtLeast: 60,
+					}
+					_, erremit := msgbus.Emit(fc.ctx, Boostchannel, w)
+					if erremit != nil {
+						fmt.Println(erremit.Error())
+					}
+				}
+			} else {
+				HiTrafficCounter = HiTrafficCounter / 2
+				if HiTrafficCounter < 0 {
+					HiTrafficCounter = 0
+				}
+			}
+			//fmt.Println("HiTrafficCounter:", HiTrafficCounter)
+		}
+	}
+
 }
 
 func (fc *FilteredConn) LocalAddr() net.Addr {
@@ -120,7 +191,7 @@ func (fc *FilteredConn) Write(p []byte) (int, error) {
 	return 0, err2
 }
 
-func (fc *FilteredConn) WriteC() () {
+func (fc *FilteredConn) WriteC() {
 	for {
 		select {
 		case data := <-fc.TxDataChannel:

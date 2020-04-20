@@ -267,6 +267,7 @@ func (pc *ProviderClient) DialRxConnection(ctx context.Context) {
 		fmt.Println(resp.Status)
 	}
 	io.Copy(pwriter, resp.Body)
+	resp.Body.Close()
 }
 
 func (pc *ProviderClient) AsConn() net.Conn {

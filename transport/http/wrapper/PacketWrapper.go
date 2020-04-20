@@ -47,7 +47,31 @@ func ReceivePacketOverReader(lengthMask int64, reader io.Reader, sendingChan cha
 		sendingChan <- buf
 
 		if ctx.Err() != nil {
-			fmt.Println("Connnection Closing,", err.Error())
+			fmt.Println("Connnection Closing,", ctx.Err().Error())
+
+			//End Transmit
+
+			if f, ok := reader.(*io.PipeReader); ok {
+				_ = f
+				f.Close()
+			} else {
+				//log.Println("Cannot flush writer")
+			}
+
+			if f, ok := reader.(io.ReadCloser); ok {
+				_ = f
+				f.Close()
+			} else {
+				//log.Println("Cannot flush writer")
+			}
+
+			if f, ok := reader.(io.Closer); ok {
+				_ = f
+				f.Close()
+			} else {
+				//log.Println("Cannot flush writer")
+			}
+
 			return
 		}
 

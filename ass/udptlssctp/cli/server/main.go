@@ -28,10 +28,8 @@ func main() {
 
 	flag.Parse()
 
-
-
 	checksum := sha256.New()
-	for i:=0 ; i<=3 ; i++{
+	for i := 0; i <= 3; i++ {
 		checksum.Write([]byte(password))
 
 		checksum.Write([]byte("D2OxX6DDcB2pZ7WlyRHrZcZ1DfAUdrldhji1A"))
@@ -41,14 +39,13 @@ func main() {
 		checksum.Write([]byte("D2OxX6DDcB2pZ7WlyRHrZcZ1DfAUdrldhji1B"))
 	}
 
-
-	bytse:=checksum.Sum([]byte(nil))
+	bytse := checksum.Sum([]byte(nil))
 
 	out := fmt.Sprint(bytse)
 
 	const Checking = ""
 
-	if out != Checking{
+	if out != Checking {
 		println(out)
 
 		if Checking != "" {
@@ -57,7 +54,7 @@ func main() {
 		}
 	}
 
-	us := udptlssctp.NewUdptlsSctpServer(address, password, context.TODO())
+	us := udptlssctp.NewUdptlsSctpServer(address, password, context.Background())
 
 	us.Up()
 

@@ -23,8 +23,6 @@ func NewUdptlsSctpServer(localAddress string, password string, ctx context.Conte
 	ctxwbus := context.WithValue(ctx, interfaces.ExtraOptionsMessageBus, utss.msgbus)
 
 	utss.ctx = ctxwbus
-
-	utss.ctx = ctx
 	return utss
 }
 

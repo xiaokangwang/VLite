@@ -17,11 +17,11 @@ func main() {
 	var address string
 	var addressL string
 
-	//flag.StringVar(&password, "Password", "", "")
-	//flag.StringVar(&address, "Address", "", "")
+	flag.StringVar(&password, "Password", "", "")
+	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "127.0.0.1:1988", "")
 	flag.Parse()
-	uc := udptlssctp.NewUdptlsSctpClientDirect(address, password, context.TODO())
+	uc := udptlssctp.NewUdptlsSctpClientDirect(address, password, context.Background())
 	uc.Up()
 
 	connadp := udpconn2tun.NewUDPConn2Tun(uc.TunnelTxToTun, uc.TunnelRxFromTun)
@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	socks.Handle = socksinterface.NewSocksHandler(uc,connadp)
+	socks.Handle = socksinterface.NewSocksHandler(uc, connadp)
 	go socks.RunTCPServer()
 	go socks.RunUDPServer()
 	sigs := make(chan os.Signal, 1)
@@ -38,4 +38,3 @@ func main() {
 	<-sigs
 
 }
-

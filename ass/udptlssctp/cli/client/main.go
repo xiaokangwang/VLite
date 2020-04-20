@@ -21,12 +21,12 @@ func main() {
 	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "", "")
 	flag.Parse()
-	uc := udptlssctp.NewUdptlsSctpClient(address, password, context.TODO())
+	uc := udptlssctp.NewUdptlsSctpClient(address, password, context.Background())
 	socks, err := socks5.NewClassicServer(addressL, "0.0.0.0", "", "", 0, 0, 0, 0)
 	if err != nil {
 		panic(err)
 	}
-	socks.Handle = socksinterface.NewSocksHandler(uc,nil)
+	socks.Handle = socksinterface.NewSocksHandler(uc, nil)
 	go func() {
 		fmt.Println(socks.RunTCPServer().Error())
 	}()

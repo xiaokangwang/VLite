@@ -63,6 +63,7 @@ func (pc *ProviderClient) boostWorker(info chan ibusInterface.ConnBoostMode) {
 				fmt.Println("Boost Time Recharged ", Boosttime)
 
 			} else {
+
 				currentlyBoosting = false
 				cancelFunc()
 			}
