@@ -104,7 +104,7 @@ func (pc *ProviderClient) boostConnScaleMgr(boostingconnctx context.Context, exp
 	boostingconnctx = context.WithValue(boostingconnctx,
 		interfaces.ExtraOptionsHTTPTransportConnIsBoostConnection, true)
 
-	cancelQueue := queue.NewRingBuffer(uint64(pc.MaxBoostRxConnection + pc.MaxTxConnection + 10))
+	cancelQueue := queue.NewRingBuffer(uint32(pc.MaxBoostRxConnection + pc.MaxTxConnection + 10))
 	downscaleTimer := time.NewTicker(time.Second * time.Duration(15))
 	upscaleTimer := time.NewTicker(time.Second * time.Duration(1))
 	expectedSizeLast := 0
@@ -122,8 +122,8 @@ func (pc *ProviderClient) boostConnScaleMgr(boostingconnctx context.Context, exp
 		case <-pc.connctx.Done():
 			return
 		case <-downscaleTimer.C:
-			if cancelQueue.Len() > uint64(expectedSizeLast) {
-				atomic.StoreInt64(&RedialValue.ShouldNotReDial, 1)
+			if cancelQueue.Len() > uint32(expectedSizeLast) {
+				atomic.StoreInt32(&RedialValue.ShouldNotReDial, 1)
 				if RxGracePeriodCharges <= 0 || isTx {
 					s, _ := cancelQueue.Get()
 					s.(context.CancelFunc)()
@@ -134,8 +134,8 @@ func (pc *ProviderClient) boostConnScaleMgr(boostingconnctx context.Context, exp
 		case currentExpected := <-expectedSize:
 			expectedSizeLast = currentExpected
 		case <-upscaleTimer.C:
-			if uint64(expectedSizeLast) > cancelQueue.Len() {
-				atomic.StoreInt64(&RedialValue.ShouldNotReDial, 0)
+			if uint32(expectedSizeLast) > cancelQueue.Len() {
+				atomic.StoreInt32(&RedialValue.ShouldNotReDial, 0)
 				RxGracePeriodCharges = 4
 				thisctx, cancel := context.WithCancel(boostingconnctx)
 				thisctx = context.WithValue(thisctx,

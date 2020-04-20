@@ -34,3 +34,5 @@ require (
 replace github.com/FlowerWrong/netstack => ./vendor/github.com/FlowerWrong/netstack
 
 replace github.com/FlowerWrong/water => ./vendor/github.com/FlowerWrong/water
+
+replace github.com/golang-collections/go-datastructures => ./vendor/github.com/golang-collections/go-datastructures

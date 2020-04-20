@@ -30,5 +30,5 @@ type ExtraOptionsBoostConnectionGracefulShutdownRequestValue struct {
 const ExtraOptionsBoostConnectionShouldNotRedial = "ExtraOptionsBoostConnectionShouldNotRedial"
 
 type ExtraOptionsBoostConnectionShouldNotRedialValue struct {
-	ShouldNotReDial int64
+	ShouldNotReDial int32
 }

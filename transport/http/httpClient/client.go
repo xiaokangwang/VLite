@@ -109,8 +109,8 @@ func (pc *ProviderClient) StartConnections() {
 }
 
 func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
-	var shouldNotRedialDef = int64(0)
-	var shouldNotRedial *int64
+	var shouldNotRedialDef = int32(0)
+	var shouldNotRedial *int32
 	shouldNotRedial = &shouldNotRedialDef
 
 	noredial := ctx.Value(interfaces.ExtraOptionsBoostConnectionShouldNotRedial)
@@ -119,7 +119,7 @@ func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
 			ShouldNotReDial
 	}
 
-	for ctx.Err() == nil && atomic.LoadInt64(shouldNotRedial) == 0 {
+	for ctx.Err() == nil && atomic.LoadInt32(shouldNotRedial) == 0 {
 		nobust := time.NewTimer(time.Second)
 		pc.DialTxConnection(ctx)
 		<-nobust.C
@@ -127,8 +127,8 @@ func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
 }
 
 func (pc *ProviderClient) DialRxConnectionD(ctx context.Context) {
-	var shouldNotRedialDef = int64(0)
-	var shouldNotRedial *int64
+	var shouldNotRedialDef = int32(0)
+	var shouldNotRedial *int32
 	shouldNotRedial = &shouldNotRedialDef
 
 	noredial := ctx.Value(interfaces.ExtraOptionsBoostConnectionShouldNotRedial)
@@ -137,7 +137,7 @@ func (pc *ProviderClient) DialRxConnectionD(ctx context.Context) {
 			ShouldNotReDial
 	}
 
-	for ctx.Err() == nil && atomic.LoadInt64(shouldNotRedial) == 0 {
+	for ctx.Err() == nil && atomic.LoadInt32(shouldNotRedial) == 0 {
 		nobust := time.NewTimer(time.Second)
 		pc.DialRxConnection(ctx)
 		<-nobust.C
