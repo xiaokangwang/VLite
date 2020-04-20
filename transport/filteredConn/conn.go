@@ -55,7 +55,7 @@ func (fc *FilteredConn) GetPacketStatus() (uint64, uint64) {
 func (fc *FilteredConn) connectionBoostRequester() {
 	sent, recv := fc.GetPacketStatus()
 
-	msgbus := ibus.MessageBusFromContext(fc.ctx)
+	msgbus := ibus.ConnectionMessageBusFromContext(fc.ctx)
 
 	connstr := connidutil.ConnIDToString(fc.ctx)
 

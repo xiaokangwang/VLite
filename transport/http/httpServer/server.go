@@ -5,6 +5,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/connidutil"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/ibusTopic"
+	"github.com/xiaokangwang/VLite/interfaces/ibusInterface"
+	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/antiReplayWindow"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
@@ -130,6 +135,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	ppsd.TxChan = make(chan []byte, 8)
 	ppsd.pss = &pss
 	ppsd.noReplayChecker = antiReplayWindow.NewAntiReplayWindow(119)
+	ppsd.boostConnectionGSRV = &interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequestValue{ShouldClose: make(chan interface{})}
 
 	a, ok := pss.clientSet.LoadOrStore(beardata.ConnID, ppsd)
 
@@ -138,7 +144,13 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	} else {
 		connid := ppsd.ID[:]
 		connctx := context.WithValue(pss.ctx, interfaces.ExtraOptionsConnID, connid)
-		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx)
+		connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+		connctx2, cancel := context.WithCancel(connctx)
+		ppsd.drop = cancel
+		ppsd.ctx = connctx2
+
+		go ppsd.BoostingListener(connctx2)
+		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx2)
 	}
 
 	if !ppsd.noReplayChecker.Check(beardata.Rand[:]) {
@@ -146,15 +158,41 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	currentHTTPRequestCtx := pss.ctx
+
+	currentHTTPRequestCtx = context.WithValue(currentHTTPRequestCtx,
+		interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequest,
+		ppsd.boostConnectionGSRV)
+
+	if beardata.Flags&proto.HttpHeaderFlag_BoostConnection != 0 {
+		currentHTTPRequestCtx = context.WithValue(currentHTTPRequestCtx,
+			interfaces.ExtraOptionsHTTPTransportConnIsBoostConnection,
+			true)
+		mbus := ibus.ConnectionMessageBusFromContext(ppsd.ctx)
+
+		connstr := connidutil.ConnIDToString(ppsd.ctx)
+
+		Boostchannel := ibusTopic.ConnBoostMode(connstr)
+
+		w := ibusInterface.ConnBoostMode{
+			Enable:         true,
+			TimeoutAtLeast: 60,
+		}
+		_, erremit := mbus.Emit(ppsd.ctx, Boostchannel, w)
+		if erremit != nil {
+			fmt.Println(erremit.Error())
+		}
+	}
+
 	if r.Method == "GET" {
 		fmt.Println("GET")
-		ppsd.Get(rw, r, beardata.Masker)
+		ppsd.Get(rw, r, beardata.Masker, currentHTTPRequestCtx)
 		return
 	}
 
 	if r.Method == "POST" {
 		fmt.Println("POST")
-		ppsd.Post(rw, r, beardata.Masker)
+		ppsd.Post(rw, r, beardata.Masker, currentHTTPRequestCtx)
 		return
 	}
 
@@ -177,23 +215,29 @@ type ProviderConnServerSide struct {
 	pss *ProviderServerSide
 
 	noReplayChecker *antiReplayWindow.AntiReplayWindow
+
+	boostConnectionGSRV *interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequestValue
+
+	drop context.CancelFunc
+	ctx  context.Context
 }
 
 func (pcn *ProviderConnServerSide) Close() error {
 	//TODO notify client
 	pcn.pss.clientSet.Delete(pcn.ID)
+	pcn.drop()
 	return nil
 }
 
-func (pcn *ProviderConnServerSide) Post(rw http.ResponseWriter, r *http.Request, masker int64) {
-	wrapper.ReceivePacketOverReader(masker, r.Body, pcn.RxChan, pcn.pss.ctx)
+func (pcn *ProviderConnServerSide) Post(rw http.ResponseWriter, r *http.Request, masker int64, ctx context.Context) {
+	wrapper.ReceivePacketOverReader(masker, r.Body, pcn.RxChan, ctx)
 	r.Body.Close()
 }
 
 var WriteBufferSize = 0
 
-func (pcn *ProviderConnServerSide) Get(rw http.ResponseWriter, r *http.Request, masker int64) {
+func (pcn *ProviderConnServerSide) Get(rw http.ResponseWriter, r *http.Request, masker int64, ctx context.Context) {
 	rw.Header().Add("X-Accel-Buffering", "no")
 
-	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering, pcn.pss.ctx)
+	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering, ctx)
 }

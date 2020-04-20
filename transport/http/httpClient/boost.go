@@ -10,6 +10,7 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces/ibus/connidutil"
 	"github.com/xiaokangwang/VLite/interfaces/ibus/ibusTopic"
 	"github.com/xiaokangwang/VLite/interfaces/ibusInterface"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,7 +18,7 @@ func (pc *ProviderClient) BoostingListener() {
 	ConnIDString := connidutil.ConnIDToString(pc.connctx)
 	BusTopic := ibusTopic.ConnBoostMode(ConnIDString)
 
-	mbus := ibus.MessageBusFromContext(pc.connctx)
+	mbus := ibus.ConnectionMessageBusFromContext(pc.connctx)
 
 	mbus.RegisterTopics(BusTopic)
 
@@ -107,20 +108,39 @@ func (pc *ProviderClient) boostConnScaleMgr(boostingconnctx context.Context, exp
 	downscaleTimer := time.NewTicker(time.Second * time.Duration(15))
 	upscaleTimer := time.NewTicker(time.Second * time.Duration(1))
 	expectedSizeLast := 0
+
+	//we assume server will close OUR Rx to client connection with 20 seconds of delay
+	//and we have a 60 seconds of grace period
+	//in which we don't redial, but keep connection opened
+	//so that server can close it gracefully
+	RxGracePeriodCharges := 4
+
+	RedialValue := &interfaces.ExtraOptionsBoostConnectionShouldNotRedialValue{ShouldNotReDial: 1}
+
 	for {
 		select {
 		case <-pc.connctx.Done():
 			return
 		case <-downscaleTimer.C:
 			if cancelQueue.Len() > uint64(expectedSizeLast) {
-				s, _ := cancelQueue.Get()
-				s.(context.CancelFunc)()
+				atomic.StoreInt64(&RedialValue.ShouldNotReDial, 1)
+				if RxGracePeriodCharges <= 0 || isTx {
+					s, _ := cancelQueue.Get()
+					s.(context.CancelFunc)()
+				} else {
+					RxGracePeriodCharges--
+				}
 			}
 		case currentExpected := <-expectedSize:
 			expectedSizeLast = currentExpected
 		case <-upscaleTimer.C:
 			if uint64(expectedSizeLast) > cancelQueue.Len() {
+				atomic.StoreInt64(&RedialValue.ShouldNotReDial, 0)
+				RxGracePeriodCharges = 4
 				thisctx, cancel := context.WithCancel(boostingconnctx)
+				thisctx = context.WithValue(thisctx,
+					interfaces.ExtraOptionsBoostConnectionShouldNotRedial,
+					RedialValue)
 				if isTx {
 					go pc.DialTxConnectionD(thisctx)
 				} else {

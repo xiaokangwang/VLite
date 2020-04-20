@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
@@ -15,6 +16,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -79,6 +81,8 @@ func NewProviderClient(HttpRequestEndpoint string,
 
 	vctx := context.WithValue(ctx, interfaces.ExtraOptionsConnID, id)
 
+	vctx = context.WithValue(vctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	prc.connctx, prc.closeCtx = context.WithCancel(vctx)
 	go prc.StartConnections()
 	go prc.BoostingListener()
@@ -105,8 +109,17 @@ func (pc *ProviderClient) StartConnections() {
 }
 
 func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
+	var shouldNotRedialDef = int64(0)
+	var shouldNotRedial *int64
+	shouldNotRedial = &shouldNotRedialDef
 
-	for ctx.Err() == nil {
+	noredial := ctx.Value(interfaces.ExtraOptionsBoostConnectionShouldNotRedial)
+	if noredial != nil {
+		shouldNotRedial = &noredial.(*interfaces.ExtraOptionsBoostConnectionShouldNotRedialValue).
+			ShouldNotReDial
+	}
+
+	for ctx.Err() == nil && atomic.LoadInt64(shouldNotRedial) == 0 {
 		nobust := time.NewTimer(time.Second)
 		pc.DialTxConnection(ctx)
 		<-nobust.C
@@ -114,7 +127,17 @@ func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
 }
 
 func (pc *ProviderClient) DialRxConnectionD(ctx context.Context) {
-	for ctx.Err() == nil {
+	var shouldNotRedialDef = int64(0)
+	var shouldNotRedial *int64
+	shouldNotRedial = &shouldNotRedialDef
+
+	noredial := ctx.Value(interfaces.ExtraOptionsBoostConnectionShouldNotRedial)
+	if noredial != nil {
+		shouldNotRedial = &noredial.(*interfaces.ExtraOptionsBoostConnectionShouldNotRedialValue).
+			ShouldNotReDial
+	}
+
+	for ctx.Err() == nil && atomic.LoadInt64(shouldNotRedial) == 0 {
 		nobust := time.NewTimer(time.Second)
 		pc.DialRxConnection(ctx)
 		<-nobust.C
@@ -168,7 +191,7 @@ func (pc *ProviderClient) DialTxConnection(ctx context.Context) {
 		return
 	}
 
-	pc.reqprepare(req, masking)
+	pc.reqprepare(req, masking, ctx)
 
 	resp, err4 := hc.Do(req)
 	if err4 != nil {
@@ -183,7 +206,7 @@ func (pc *ProviderClient) DialTxConnection(ctx context.Context) {
 	resp.Body.Close()
 }
 
-func (pc *ProviderClient) reqprepare(req *http.Request, masking int64) {
+func (pc *ProviderClient) reqprepare(req *http.Request, masking int64, ctx context.Context) {
 	req.Header.Set("User-Agent", "")
 
 	ph := proto.HttpHeaderHolder{
@@ -192,6 +215,18 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64) {
 	mrand.Read(ph.Rand[:])
 	copy(ph.ConnID[:], pc.ID)
 	ph.Time = time.Now().Unix()
+
+	boostConnection := false
+
+	v := ctx.Value(interfaces.ExtraOptionsHTTPTransportConnIsBoostConnection)
+	if v != nil {
+		boostConnection = v.(bool)
+	}
+
+	if boostConnection {
+		ph.Flags |= proto.HttpHeaderFlag_BoostConnection
+		fmt.Println("Boost Mark Set")
+	}
 
 	BearToken := pc.hh.Seal(ph)
 
@@ -210,6 +245,7 @@ func (pc *ProviderClient) reqprepareTest(req *http.Request, masking int64) {
 	ph := proto.HttpHeaderHolder{
 		Masker: masking,
 	}
+
 	BearToken := pc.hh.Seal(ph)
 
 	switch pc.authlocation {
@@ -258,7 +294,7 @@ func (pc *ProviderClient) DialRxConnection(ctx context.Context) {
 		return
 	}
 
-	pc.reqprepare(req, masking)
+	pc.reqprepare(req, masking, ctx)
 
 	resp, err4 := hc.Do(req)
 	if err4 != nil {

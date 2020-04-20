@@ -8,6 +8,8 @@ type ExtraOptionsUDPTimeoutTimeValue struct {
 
 const ExtraOptionsMessageBus = "ExtraOptionsMessageBus"
 
+const ExtraOptionsMessageBusByConn = "ExtraOptionsMessageBusByConn"
+
 const ExtraOptionsConnID = "ExtraOptionsConnID"
 
 const ExtraOptionsBoostConnectionSettingsHTTPTransport = "ExtraOptionsBoostConnectionSettingsHTTPTransport"
@@ -18,3 +20,15 @@ type ExtraOptionsBoostConnectionSettingsHTTPTransportValue struct {
 }
 
 const ExtraOptionsHTTPTransportConnIsBoostConnection = "ExtraOptionsHTTPTransportConnIsBoostConnection"
+
+const ExtraOptionsBoostConnectionGracefulShutdownRequest = "ExtraOptionsBoostConnectionGracefulShutdownRequest"
+
+type ExtraOptionsBoostConnectionGracefulShutdownRequestValue struct {
+	ShouldClose chan interface{}
+}
+
+const ExtraOptionsBoostConnectionShouldNotRedial = "ExtraOptionsBoostConnectionShouldNotRedial"
+
+type ExtraOptionsBoostConnectionShouldNotRedialValue struct {
+	ShouldNotReDial int64
+}

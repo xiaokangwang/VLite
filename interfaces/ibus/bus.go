@@ -32,5 +32,9 @@ func NewMessageBus() *bus.Bus {
 func MessageBusFromContext(ctx context.Context) *bus.Bus {
 	val := ctx.Value(interfaces.ExtraOptionsMessageBus)
 	return val.(*bus.Bus)
+}
 
+func ConnectionMessageBusFromContext(ctx context.Context) *bus.Bus {
+	val := ctx.Value(interfaces.ExtraOptionsMessageBus)
+	return val.(*bus.Bus)
 }

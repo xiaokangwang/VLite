@@ -105,4 +105,7 @@ type HttpHeaderHolder struct {
 	ConnID [24]byte `struc:"[24]byte"`
 	Rand   [24]byte `struc:"[24]byte"`
 	Time   int64    `struc:"int64"`
+	Flags  int64    `struc:"int64"`
 }
+
+const HttpHeaderFlag_BoostConnection = 1 << 0

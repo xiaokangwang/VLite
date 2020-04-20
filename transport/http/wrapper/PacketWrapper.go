@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/lunixbochs/struc"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
 	"io"
 	"math/rand"
@@ -92,6 +93,22 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 		return
 	}
 
+	boostConnection := false
+
+	boostConnectionBoostMarkValue := ctx.Value(interfaces.ExtraOptionsHTTPTransportConnIsBoostConnection)
+	if boostConnectionBoostMarkValue != nil {
+		boostConnection = boostConnectionBoostMarkValue.(bool)
+	}
+
+	DropSignal := make(chan interface{})
+
+	if boostConnection {
+		shouldCloseValue := ctx.Value(interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequest)
+		if shouldCloseValue != nil {
+			DropSignal = shouldCloseValue.(*interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequestValue).ShouldClose
+		}
+	}
+
 	for {
 		select {
 		case sending := <-receivingChan:
@@ -123,6 +140,9 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 			timer.Reset(fillInterval)
 		case <-ctx.Done():
 			fmt.Println("Connnection Closing,", ctx.Err().Error())
+			return
+		case <-DropSignal:
+			fmt.Println("Connnection Closing, Drop boost connection")
 			return
 		}
 
