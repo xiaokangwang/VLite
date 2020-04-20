@@ -104,4 +104,5 @@ type HttpHeaderHolder struct {
 	Masker int64    `struc:"int64"`
 	ConnID [24]byte `struc:"[24]byte"`
 	Rand   [24]byte `struc:"[24]byte"`
+	Time   int64    `struc:"int64"`
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
 	"github.com/xiaokangwang/VLite/transport/http/httpconsts"
 	"github.com/xiaokangwang/VLite/transport/http/wrapper"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -69,6 +70,12 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	beardata := pss.hh.Open(bearerc)
 
 	if beardata == nil {
+		http.NotFound(rw, r)
+		return
+	}
+	timediff := math.Abs(float64(beardata.Time - time.Now().Unix()))
+	//fmt.Println(timediff)
+	if timediff > 120 {
 		http.NotFound(rw, r)
 		return
 	}

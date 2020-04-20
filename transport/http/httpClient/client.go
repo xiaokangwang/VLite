@@ -191,6 +191,8 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64) {
 	}
 	mrand.Read(ph.Rand[:])
 	copy(ph.ConnID[:], pc.ID)
+	ph.Time = time.Now().Unix()
+
 	BearToken := pc.hh.Seal(ph)
 
 	switch pc.authlocation {
