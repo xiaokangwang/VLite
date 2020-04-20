@@ -19,12 +19,17 @@ type RxTxToConn struct {
 }
 
 func (r RxTxToConn) Read(b []byte) (n int, err error) {
-	rx := <-r.RxChan
-	n = copy(b, rx)
-	if n != len(rx) {
-		return 0, io.ErrShortBuffer
+	select {
+	case rx := <-r.RxChan:
+		n = copy(b, rx)
+		if n != len(rx) {
+			return 0, io.ErrShortBuffer
+		}
+		return n, nil
+	case <-time.NewTimer(time.Second * 400).C:
+		return 0, io.EOF
 	}
-	return n, nil
+
 }
 
 func (r RxTxToConn) Write(b []byte) (n int, err error) {
@@ -41,7 +46,7 @@ func (r RxTxToConn) LocalAddr() net.Addr {
 }
 
 func (r RxTxToConn) RemoteAddr() net.Addr {
-	panic("implement me")
+	return nil
 }
 
 func (r RxTxToConn) SetDeadline(t time.Time) error {
