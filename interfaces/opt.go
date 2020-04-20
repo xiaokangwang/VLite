@@ -9,3 +9,12 @@ type ExtraOptionsUDPTimeoutTimeValue struct {
 const ExtraOptionsMessageBus = "ExtraOptionsMessageBus"
 
 const ExtraOptionsConnID = "ExtraOptionsConnID"
+
+const ExtraOptionsBoostConnectionSettingsHTTPTransport = "ExtraOptionsBoostConnectionSettingsHTTPTransport"
+
+type ExtraOptionsBoostConnectionSettingsHTTPTransportValue struct {
+	MaxBoostTxConnection int
+	MaxBoostRxConnection int
+}
+
+const ExtraOptionsHTTPTransportConnIsBoostConnection = "ExtraOptionsHTTPTransportConnIsBoostConnection"

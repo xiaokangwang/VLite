@@ -65,8 +65,24 @@ func NewProviderClient(HttpRequestEndpoint string,
 	prc.ID = id
 	prc.hh = headerHolder.NewHttpHeaderHolderProcessor(password)
 
-	prc.connctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, id)
+	prc.MaxBoostRxConnection = 16
+	prc.MaxBoostTxConnection = 16
+
+	boostvsl := ctx.Value(interfaces.ExtraOptionsBoostConnectionSettingsHTTPTransport)
+
+	if boostvsl != nil {
+		bcfg := boostvsl.(*interfaces.ExtraOptionsBoostConnectionSettingsHTTPTransportValue)
+		prc.MaxBoostRxConnection = bcfg.MaxBoostRxConnection
+		prc.MaxBoostTxConnection = bcfg.MaxBoostTxConnection
+
+	}
+
+	vctx := context.WithValue(ctx, interfaces.ExtraOptionsConnID, id)
+
+	prc.connctx, prc.closeCtx = context.WithCancel(vctx)
 	go prc.StartConnections()
+	go prc.BoostingListener()
+
 	return prc
 }
 func (pc *ProviderClient) StartConnections() {
@@ -75,12 +91,12 @@ func (pc *ProviderClient) StartConnections() {
 	for more {
 		more = false
 		if i < pc.MaxRxConnection {
-			go pc.DialRxConnectionD()
+			go pc.DialRxConnectionD(pc.connctx)
 			more = true
 		}
 		//<-time.NewTimer(time.Second).C
 		if i < pc.MaxTxConnection {
-			go pc.DialTxConnectionD()
+			go pc.DialTxConnectionD(pc.connctx)
 			more = true
 		}
 		i++
@@ -88,19 +104,19 @@ func (pc *ProviderClient) StartConnections() {
 	}
 }
 
-func (pc *ProviderClient) DialTxConnectionD() {
+func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
 
-	for !pc.closed {
+	for ctx.Err() == nil {
 		nobust := time.NewTimer(time.Second)
-		pc.DialTxConnection()
+		pc.DialTxConnection(ctx)
 		<-nobust.C
 	}
 }
 
-func (pc *ProviderClient) DialRxConnectionD() {
-	for !pc.closed {
+func (pc *ProviderClient) DialRxConnectionD(ctx context.Context) {
+	for ctx.Err() == nil {
 		nobust := time.NewTimer(time.Second)
-		pc.DialRxConnection()
+		pc.DialRxConnection(ctx)
 		<-nobust.C
 	}
 }
@@ -114,6 +130,9 @@ type ProviderClient struct {
 	MaxTxConnection     int
 	MaxRxConnection     int
 
+	MaxBoostTxConnection int
+	MaxBoostRxConnection int
+
 	TxChan chan []byte
 	RxChan chan []byte
 
@@ -121,7 +140,7 @@ type ProviderClient struct {
 
 	hh *headerHolder.HttpHeaderHolderProcessor
 
-	closed bool
+	closeCtx context.CancelFunc
 
 	authlocation int
 }
@@ -131,17 +150,17 @@ func (pc *ProviderClient) GetConnCtx() context.Context {
 }
 
 func (pc *ProviderClient) Close() error {
-	pc.closed = true
+	pc.closeCtx()
 	return nil
 }
 
-func (pc *ProviderClient) DialTxConnection() {
+func (pc *ProviderClient) DialTxConnection(ctx context.Context) {
 
 	hc := pc.getHttpClient()
 
 	masking, preader, pwriter := pc.prepareHTTP()
 
-	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan, 0)
+	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan, 0, ctx)
 
 	req, err := http.NewRequest("POST", pc.HttpRequestEndpoint, preader)
 	if err != nil {
@@ -223,12 +242,13 @@ func (pc *ProviderClient) getHttpClient() http.Client {
 	}
 	return hc
 }
-func (pc *ProviderClient) DialRxConnection() {
+
+func (pc *ProviderClient) DialRxConnection(ctx context.Context) {
 	hc := pc.getHttpClient()
 
 	masking, preader, pwriter := pc.prepareHTTP()
 
-	go wrapper.ReceivePacketOverReader(masking, preader, pc.RxChan)
+	go wrapper.ReceivePacketOverReader(masking, preader, pc.RxChan, ctx)
 
 	req, err := http.NewRequest("GET", pc.HttpRequestEndpoint, nil)
 	if err != nil {

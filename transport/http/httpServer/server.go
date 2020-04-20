@@ -170,7 +170,7 @@ func (pcn *ProviderConnServerSide) Close() error {
 }
 
 func (pcn *ProviderConnServerSide) Post(rw http.ResponseWriter, r *http.Request, masker int64) {
-	wrapper.ReceivePacketOverReader(masker, r.Body, pcn.RxChan)
+	wrapper.ReceivePacketOverReader(masker, r.Body, pcn.RxChan, pcn.pss.ctx)
 	r.Body.Close()
 }
 
@@ -179,5 +179,5 @@ var WriteBufferSize = 0
 func (pcn *ProviderConnServerSide) Get(rw http.ResponseWriter, r *http.Request, masker int64) {
 	rw.Header().Add("X-Accel-Buffering", "no")
 
-	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering)
+	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering, pcn.pss.ctx)
 }

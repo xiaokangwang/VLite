@@ -2,6 +2,8 @@ package wrapper
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/proto"
 	"io"
@@ -10,7 +12,7 @@ import (
 	"time"
 )
 
-func ReceivePacketOverReader(lengthMask int64, reader io.Reader, sendingChan chan []byte) {
+func ReceivePacketOverReader(lengthMask int64, reader io.Reader, sendingChan chan []byte, ctx context.Context) {
 	src := rand.NewSource(lengthMask)
 	lenmaskSource := rand.New(src)
 
@@ -44,16 +46,27 @@ func ReceivePacketOverReader(lengthMask int64, reader io.Reader, sendingChan cha
 
 		sendingChan <- buf
 
+		if ctx.Err() != nil {
+			fmt.Println("Connnection Closing,", err.Error())
+			return
+		}
+
 	}
 
 }
-func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan []byte, networkBuffering int) {
+func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan []byte, networkBuffering int, ctx context.Context) {
 	src := rand.NewSource(lengthMask)
 	lenmaskSource := rand.New(src)
 	fillInterval := time.Millisecond * 80
 	timer := time.NewTimer(fillInterval)
 	var bytesSendInThisInterval int
 	var payloadSentInThisInterval bool
+
+	done1, overfill1 := sendFill(8, lenmaskSource, writer)
+	bytesSendInThisInterval = overfill1
+	if done1 {
+		return
+	}
 
 	for {
 		select {
@@ -76,6 +89,9 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 				payloadSentInThisInterval = false
 			}
 			timer.Reset(fillInterval)
+		case <-ctx.Done():
+			fmt.Println("Connnection Closing,", ctx.Err().Error())
+			return
 		}
 
 	}
