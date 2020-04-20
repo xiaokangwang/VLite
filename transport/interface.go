@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"net"
 )
@@ -13,9 +14,9 @@ type Transport interface {
 }
 
 type UnderlayTransportListener interface {
-	Connection(conn net.Conn)
+	Connection(conn net.Conn, ctx context.Context)
 }
 
 type UnderlayTransportDialer interface {
-	Connect()(net.Conn, error)
+	Connect() (net.Conn, error, context.Context)
 }
