@@ -95,7 +95,15 @@ func SendPacketOverWriter(lengthMask int64, writer io.Writer, receivingChan chan
 	for {
 		select {
 		case sending := <-receivingChan:
-			if sendPayload(sending, lenmaskSource, writer) {
+			done, returnmsg := sendPayload(sending, lenmaskSource, writer)
+			if returnmsg {
+				select {
+				case receivingChan <- sending:
+				case <-time.NewTimer(120 * time.Second).C:
+				}
+
+			}
+			if done {
 				return
 			}
 			bytesSendInThisInterval += len(sending)
@@ -147,13 +155,13 @@ func sendFill(fillLength int, lenmaskSource *rand.Rand, writer io.Writer) (bool,
 	return false, overfill
 }
 
-func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) bool {
+func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) (bool, bool) {
 	l := &proto.HTTPLenHeader{}
 	l.Length = int64(len(sending))
 
 	if len(sending) > 1601 {
 		println("Tx Message Too Long")
-		return true
+		return true, false
 	}
 
 	l.Length ^= lenmaskSource.Int63()
@@ -162,7 +170,7 @@ func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) boo
 
 	if err != nil {
 		println(err.Error())
-		return true
+		return true, true
 	}
 
 	_, err = io.Copy(writer, bytes.NewReader(sending))
@@ -176,9 +184,9 @@ func sendPayload(sending []byte, lenmaskSource *rand.Rand, writer io.Writer) boo
 
 	if err != nil {
 		println(err.Error())
-		return true
+		return true, true
 	}
-	return false
+	return false, false
 }
 
 func TestBufferSizePayload(sendingSize int, lenmaskSource *rand.Rand, writer io.Writer) {

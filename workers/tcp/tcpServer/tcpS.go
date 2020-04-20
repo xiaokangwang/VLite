@@ -20,7 +20,7 @@ func (ts *TCPServer) RelayStream(conn io.ReadWriteCloser, ctx context.Context) {
 			fmt.Println("Recovered in f", r)
 		}
 	}()
-	fmt.Println("Relaying Stream")
+	//fmt.Println("Relaying Stream")
 	if conn == nil {
 		log.Println("conn is nil, why?")
 		return
@@ -30,18 +30,18 @@ func (ts *TCPServer) RelayStream(conn io.ReadWriteCloser, ctx context.Context) {
 		conn.Close()
 		return
 	}
-	fmt.Println("Relaying Stream2")
+	//fmt.Println("Relaying Stream2")
 	netconn, err2 := workers.Dialer.Dial("tcp", s.DestDomain, s.DestPort, ctx)
 	if err2 != nil {
 		log.Println(err2)
 		conn.Close()
 		return
 	}
-	fmt.Println("Relaying Stream3")
+	//fmt.Println("Relaying Stream3")
 	go io.Copy(netconn, conn)
 	io.Copy(conn, netconn)
 	conn.Close()
-	fmt.Println("Relaying Stream4")
+	//fmt.Println("Relaying Stream4")
 
 }
 

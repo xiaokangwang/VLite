@@ -234,6 +234,7 @@ func (s *PacketSCTPRelay) ClientOpen() {
 
 	conf := smux.DefaultConfig()
 	conf.Version = 2
+	conf.KeepAliveTimeout = 600 * time.Second
 
 	s.muxer, err = smux.Client(NewBufferedConn(scnn), conf)
 	if err != nil {
@@ -295,6 +296,7 @@ func (s *PacketSCTPRelay) tcprelayconn(str *sctp.Stream) {
 
 	conf := smux.DefaultConfig()
 	conf.Version = 2
+	conf.KeepAliveTimeout = 600 * time.Second
 
 	bufconn := NewBufferedConn(str)
 

@@ -7,6 +7,7 @@ require (
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
+	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
 	github.com/google/gopacket v1.1.17
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/juju/ratelimit v1.0.1
