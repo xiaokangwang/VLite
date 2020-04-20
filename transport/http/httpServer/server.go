@@ -2,7 +2,9 @@ package httpServer
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
@@ -16,7 +18,7 @@ import (
 	mrand "math/rand"
 )
 
-func NewProviderServerSide(listenaddr string, password string, Uplistener transport.UnderlayTransportListener) *ProviderServerSide {
+func NewProviderServerSide(listenaddr string, password string, Uplistener transport.UnderlayTransportListener, ctx context.Context) *ProviderServerSide {
 	pss := &ProviderServerSide{
 		clientSet:        new(sync.Map),
 		addr:             listenaddr,
@@ -24,6 +26,7 @@ func NewProviderServerSide(listenaddr string, password string, Uplistener transp
 		Uplistener:       Uplistener,
 		authlocation:     httpconsts.Authlocation_Path,
 		networkbuffering: 0,
+		ctx:              ctx,
 	}
 	go pss.Start()
 	return pss
@@ -36,6 +39,7 @@ type ProviderServerSide struct {
 	Uplistener       transport.UnderlayTransportListener
 	authlocation     int
 	networkbuffering int
+	ctx              context.Context
 }
 
 func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -123,7 +127,9 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	if ok {
 		ppsd = a.(*ProviderConnServerSide)
 	} else {
-		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd))
+		connid := ppsd.ID[:]
+		connctx := context.WithValue(pss.ctx, interfaces.ExtraOptionsConnID, connid)
+		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx)
 	}
 
 	if r.Method == "GET" {

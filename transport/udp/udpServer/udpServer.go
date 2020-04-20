@@ -2,6 +2,7 @@ package udpServer
 
 import (
 	"context"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport"
 	"io"
 	"log"
@@ -58,12 +59,12 @@ func (u *udpServer) Listener() {
 		} else {
 			usageConn := conn
 			//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
-
-			go u.under.Connection(usageConn)
+			connid := []byte(conn.remoteAddr.String())
+			connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, connid)
+			go u.under.Connection(usageConn, connctx)
 		}
 
 		conn.readchan <- bm[:c]
-
 
 	}
 }

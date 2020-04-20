@@ -2,7 +2,9 @@ package udptlssctp
 
 import (
 	"context"
+	"github.com/mustafaturan/bus"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/transport/http/httpServer"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpServer"
@@ -16,6 +18,12 @@ func NewUdptlsSctpServer(localAddress string, password string, ctx context.Conte
 	utss := &UdptlsSctpServer{}
 	utss.Address = localAddress
 	utss.password = []byte(password)
+
+	utss.msgbus = ibus.NewMessageBus()
+	ctxwbus := context.WithValue(ctx, interfaces.ExtraOptionsMessageBus, utss.msgbus)
+
+	utss.ctx = ctxwbus
+
 	utss.ctx = ctx
 	return utss
 }
@@ -31,13 +39,15 @@ type UdptlsSctpServer struct {
 	ratelimitServerTCPWriteBytePerSecond int
 	ratelimitServerTCPWriteMaxBucketSize int
 	ratelimitServerTCPWriteInitialSize   int
+
+	msgbus *bus.Bus
 }
 
-func (s UdptlsSctpServer) Connection(conn net.Conn) {
-	s.Process(conn)
+func (s UdptlsSctpServer) Connection(conn net.Conn, ctx context.Context) {
+	s.Process(conn, ctx)
 }
 
-func (s *UdptlsSctpServer) Process(conn net.Conn) {
+func (s *UdptlsSctpServer) Process(conn net.Conn, connctx context.Context) {
 
 	ts := tcpServer.TCPServer{}
 
@@ -58,7 +68,7 @@ func (s *UdptlsSctpServer) Process(conn net.Conn) {
 				return
 			}
 		}
-	}(s.ctx)
+	}(connctx)
 
 	go func(ctx context.Context) {
 		for {
@@ -70,7 +80,7 @@ func (s *UdptlsSctpServer) Process(conn net.Conn) {
 			}
 		}
 
-	}(s.ctx)
+	}(connctx)
 
 	go func(ctx context.Context) {
 		for {
@@ -82,13 +92,13 @@ func (s *UdptlsSctpServer) Process(conn net.Conn) {
 			}
 		}
 
-	}(s.ctx)
+	}(connctx)
 
-	relay := udpsctpserver.NewPacketRelayServer(conn, S_S2CTraffic2, S_S2CDataTraffic2, S_C2STraffic2, &ts, s.password, s.ctx)
+	relay := udpsctpserver.NewPacketRelayServer(conn, S_S2CTraffic2, S_S2CDataTraffic2, S_C2STraffic2, &ts, s.password, connctx)
 
 	_ = relay
 
-	udpserver := server.UDPServer(s.ctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
+	udpserver := server.UDPServer(connctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
 
 	_ = udpserver
 
@@ -98,7 +108,7 @@ func (s *UdptlsSctpServer) Up() {
 	//Open Connection
 	if strings.HasPrefix(s.Address, "http") {
 		address := s.Address[4:]
-		var v = httpServer.NewProviderServerSide(address, string(s.password), s)
+		var v = httpServer.NewProviderServerSide(address, string(s.password), s, s.ctx)
 		s.udplistener = v
 	} else {
 		var v = udpServer.NewUDPServer(s.Address, s.ctx, s)

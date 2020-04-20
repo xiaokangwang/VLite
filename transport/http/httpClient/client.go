@@ -2,8 +2,10 @@ package httpClient
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
@@ -19,12 +21,13 @@ import (
 func NewProviderClientCreator(HttpRequestEndpoint string,
 	MaxTxConnection int,
 	MaxRxConnection int,
-	password string) *ProviderClientCreator {
+	password string, ctx context.Context) *ProviderClientCreator {
 	return &ProviderClientCreator{
 		HttpRequestEndpoint: HttpRequestEndpoint,
 		MaxRxConnection:     MaxRxConnection,
 		MaxTxConnection:     MaxTxConnection,
 		password:            password,
+		ctx:                 ctx,
 	}
 }
 
@@ -33,29 +36,36 @@ type ProviderClientCreator struct {
 	MaxTxConnection     int
 	MaxRxConnection     int
 	password            string
+	ctx                 context.Context
 }
 
-func (p ProviderClientCreator) Connect() (net.Conn, error) {
-	return NewProviderClient(p.HttpRequestEndpoint,
+func (p ProviderClientCreator) Connect() (net.Conn, error, context.Context) {
+
+	pc := NewProviderClient(p.HttpRequestEndpoint,
 		p.MaxTxConnection,
 		p.MaxRxConnection,
-		p.password).AsConn(), nil
+		p.password, p.ctx)
+
+	return pc.AsConn(), nil, pc.connctx
 }
 
 func NewProviderClient(HttpRequestEndpoint string,
 	MaxTxConnection int,
 	MaxRxConnection int,
-	password string) *ProviderClient {
+	password string, ctx context.Context) *ProviderClient {
 	prc := &ProviderClient{HttpRequestEndpoint: HttpRequestEndpoint,
 		MaxRxConnection: MaxRxConnection,
 		MaxTxConnection: MaxTxConnection,
 		RxChan:          make(chan []byte, 8),
 		TxChan:          make(chan []byte, 8),
-		authlocation:    httpconsts.Authlocation_Path}
+		authlocation:    httpconsts.Authlocation_Path,
+		ctx:             ctx}
 	id := make([]byte, 24)
 	io.ReadFull(rand.Reader, id)
 	prc.ID = id
 	prc.hh = headerHolder.NewHttpHeaderHolderProcessor(password)
+
+	prc.connctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, id)
 	go prc.StartConnections()
 	return prc
 }
@@ -79,18 +89,27 @@ func (pc *ProviderClient) StartConnections() {
 }
 
 func (pc *ProviderClient) DialTxConnectionD() {
+
 	for !pc.closed {
+		nobust := time.NewTimer(time.Second)
 		pc.DialTxConnection()
+		<-nobust.C
 	}
 }
 
 func (pc *ProviderClient) DialRxConnectionD() {
 	for !pc.closed {
+		nobust := time.NewTimer(time.Second)
 		pc.DialRxConnection()
+		<-nobust.C
 	}
 }
 
 type ProviderClient struct {
+	ctx context.Context
+
+	connctx context.Context
+
 	HttpRequestEndpoint string
 	MaxTxConnection     int
 	MaxRxConnection     int
@@ -105,6 +124,10 @@ type ProviderClient struct {
 	closed bool
 
 	authlocation int
+}
+
+func (pc *ProviderClient) GetConnCtx() context.Context {
+	return pc.connctx
 }
 
 func (pc *ProviderClient) Close() error {

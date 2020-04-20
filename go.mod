@@ -10,6 +10,8 @@ require (
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/juju/ratelimit v1.0.1
 	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
+	github.com/mustafaturan/bus v1.0.2
+	github.com/mustafaturan/monoton v1.0.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pion/dtls v1.5.4 // indirect
 	github.com/pion/dtls/v2 v2.0.0-rc.7

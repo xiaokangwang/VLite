@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lunixbochs/struc"
+	"github.com/mustafaturan/bus"
 	"github.com/xiaokangwang/VLite/clientInbound/stack"
 	"github.com/xiaokangwang/VLite/clientInbound/tun"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/httpClient"
@@ -29,11 +31,16 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 	utsc := &UdptlsSctpClient{}
 	utsc.Address = remoteAddress
 	utsc.password = []byte(password)
-	utsc.ctx = ctx
+	utsc.msgbus = ibus.NewMessageBus()
+
+	ctxwbus := context.WithValue(ctx, interfaces.ExtraOptionsMessageBus, utsc.msgbus)
+
+	utsc.ctx = ctxwbus
+
 	if strings.HasPrefix(remoteAddress, "http") {
-		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password)
+		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
 	} else {
-		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress)
+		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, ctx)
 	}
 	return utsc
 }
@@ -48,6 +55,7 @@ type UdptlsSctpClient struct {
 	st        *stack.NetstackHolder
 
 	password []byte
+	msgbus   *bus.Bus
 }
 type UdptlsSctpClientStramToNetConnAdp struct {
 	rwc io.ReadWriteCloser
@@ -149,7 +157,7 @@ func (s *UdptlsSctpClient) NotifyMeltdown(reason error) {
 
 func (s *UdptlsSctpClient) Up() {
 	//Open Connection
-	conn, err := s.udpdialer.Connect()
+	conn, err, connctx := s.udpdialer.Connect()
 	if err != nil {
 		log.Println(err)
 		debug.PrintStack()
@@ -174,7 +182,7 @@ func (s *UdptlsSctpClient) Up() {
 			}
 		}
 
-	}(s.ctx)
+	}(connctx)
 
 	go func(ctx context.Context) {
 		for {
@@ -187,7 +195,7 @@ func (s *UdptlsSctpClient) Up() {
 			}
 		}
 
-	}(s.ctx)
+	}(connctx)
 
 	go func(ctx context.Context) {
 		for {
@@ -200,7 +208,7 @@ func (s *UdptlsSctpClient) Up() {
 			}
 		}
 
-	}(s.ctx)
+	}(connctx)
 
 	TunnelTxToTun := make(chan interfaces.UDPPacket)
 	TunnelRxFromTun := make(chan interfaces.UDPPacket)
@@ -219,8 +227,8 @@ func (s *UdptlsSctpClient) Up() {
 
 	s.st = stack2
 
-	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, s.ctx)
-	s.udpserver = client2.UDPClient(s.ctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
+	s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
 }
 
 type TCPSocketDialer interface {
