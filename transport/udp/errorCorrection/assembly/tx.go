@@ -36,7 +36,7 @@ func (pa *PacketAssembly) Tx() {
 	for {
 		select {
 		case <-pochTimer.C:
-			EpochSeq++
+
 			if pa.TxRingBuffer[CurrentTxBufferSlot].DataShardWithin != 0 {
 				var donez bool
 				donez, CurrentTxBufferSlot, packetSentThisEpoch =
@@ -71,16 +71,19 @@ func (pa *PacketAssembly) Tx() {
 					break
 				}
 			}
+			EpochSeq++
 			pochTimer.Reset(time.Duration(pa.TxEpochTimeInMs) * time.Millisecond)
 			packetSentThisEpoch = 0
 		case packet := <-pa.TxChan:
 			fecenabled := atomic.LoadUint32(&pa.FECEnabled)
 			if fecenabled == 0 {
 				pa.TxWithoutFEC(packet)
+				continue
 			}
 			id, wd := pa.TxRingBuffer[CurrentTxBufferSlot].ef.AddData(packet)
 			pa.TxRingBuffer[CurrentTxBufferSlot].DataShardWithin++
 			pa.TxRingBuffer[CurrentTxBufferSlot].Seq = pa.TxNextSeq
+			pa.TxRingBuffer[CurrentTxBufferSlot].LastPollEpochSeq = EpochSeq
 			seq := pa.TxNextSeq
 			if wd != nil {
 				if pa.packAndSend(seq, id, wd) {

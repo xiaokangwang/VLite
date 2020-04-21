@@ -203,8 +203,8 @@ func (r *RSErrorCorrectionFacility) ConstructReconstructShard() (int, []byte, bo
 		}
 	}
 	thisid := r.TotalDataShards + r.ShardInput
-	more := r.ShardInput < r.GetParityShardSum(r.TotalDataShards)
 	r.ShardInput++
+	more := r.ShardInput < r.GetParityShardSum(r.TotalDataShards)
 
 	out := bytes.NewBuffer(nil)
 	ml := &RSMessageHeader{}
@@ -225,9 +225,17 @@ func (r *RSErrorCorrectionFacility) ConstructReconstructShard() (int, []byte, bo
 
 func (r *RSErrorCorrectionFacility) matchsize(skipnil bool) {
 	maxsize := 0
-	for _, v := range r.buffer[:r.TotalDataShards] {
-		if len(v) > maxsize {
-			maxsize = len(v)
+	if !skipnil {
+		for _, v := range r.buffer[:r.TotalDataShards] {
+			if len(v) > maxsize {
+				maxsize = len(v)
+			}
+		}
+	} else {
+		for _, v := range r.buffer[:] {
+			if len(v) > maxsize {
+				maxsize = len(v)
+			}
 		}
 	}
 
