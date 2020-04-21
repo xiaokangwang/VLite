@@ -32,3 +32,10 @@ const ExtraOptionsBoostConnectionShouldNotRedial = "ExtraOptionsBoostConnectionS
 type ExtraOptionsBoostConnectionShouldNotRedialValue struct {
 	ShouldNotReDial int32
 }
+
+const ExtraOptionsFECPacketAssemblyOpt = "ExtraOptionsFECPacketAssemblyOpt"
+
+type ExtraOptionsFECPacketAssemblyOptValue struct {
+	RxMaxTimeInSecond int
+	TxEpochTimeInMs   int
+}

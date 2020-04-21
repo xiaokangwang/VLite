@@ -21,7 +21,7 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	pa.TxRingBuffer = make([]packetAssemblyTxChunkHolder, pa.TxRingBufferSize)
 	pa.MaxDataShardPerChunk = 40
 	pa.TxFECSoftPacketSoftLimitPerEpoch = 40
-	pa.TxEpochTimeInMs = 30
+	pa.TxEpochTimeInMs = 35
 	pa.RxChan = make(chan []byte, 8)
 	pa.TxChan = make(chan []byte, 8)
 	pa.TxNoFECChan = make(chan []byte, 8)
@@ -33,6 +33,15 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	pa.RxReassembleBuffer = cache.New(
 		time.Second*time.Duration(pa.RxMaxTimeInSecond),
 		4*time.Second*time.Duration(pa.RxMaxTimeInSecond))
+
+	eov := ctx.Value(interfaces.ExtraOptionsFECPacketAssemblyOpt)
+	if eov != nil {
+		eovs := eov.(*interfaces.ExtraOptionsFECPacketAssemblyOptValue)
+		pa.RxMaxTimeInSecond = eovs.RxMaxTimeInSecond
+		pa.TxEpochTimeInMs = eovs.TxEpochTimeInMs
+	}
+
+	return pa
 }
 
 type PacketAssembly struct {
