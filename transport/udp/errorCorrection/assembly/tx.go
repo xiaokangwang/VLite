@@ -29,7 +29,7 @@ func (pa *PacketAssembly) Tx() {
 
 	pa.TxRingBuffer[CurrentTxBufferSlot] = packetAssemblyTxChunkHolder{
 		ef:              pa.ecff.Create(pa.ctx),
-		enabled:         true,
+		enabled:         false,
 		DataShardWithin: 0,
 	}
 
@@ -37,17 +37,21 @@ func (pa *PacketAssembly) Tx() {
 		select {
 		case <-pochTimer.C:
 			EpochSeq++
-			var donez bool
-			donez, CurrentTxBufferSlot, packetSentThisEpoch =
-				pa.finishThisSeq(CurrentTxBufferSlot, packetSentThisEpoch)
-			if donez {
-				return
+			if pa.TxRingBuffer[CurrentTxBufferSlot].DataShardWithin != 0 {
+				var donez bool
+				donez, CurrentTxBufferSlot, packetSentThisEpoch =
+					pa.finishThisSeq(CurrentTxBufferSlot, packetSentThisEpoch)
+				if donez {
+					return
+				}
 			}
+
 			for pa.TxFECSoftPacketSoftLimitPerEpoch >= packetSentThisEpoch {
 				more := false
 				for thisslot, v := range pa.TxRingBuffer {
 					if v.enabled && (pa.TxRingBuffer[thisslot].LastPollEpochSeq != EpochSeq ||
-						pa.TxRingBuffer[thisslot].MaxSendRemainingInLastPollSeq > 0) {
+						pa.TxRingBuffer[thisslot].MaxSendRemainingInLastPollSeq > 0) &&
+						pa.TxRingBuffer[thisslot].DataShardWithin != 0 {
 						if pa.sendFECPacket(thisslot) {
 							return
 						}
@@ -68,6 +72,7 @@ func (pa *PacketAssembly) Tx() {
 				}
 			}
 			pochTimer.Reset(time.Duration(pa.TxEpochTimeInMs) * time.Millisecond)
+			packetSentThisEpoch = 0
 		case packet := <-pa.TxChan:
 			fecenabled := atomic.LoadUint32(&pa.FECEnabled)
 			if fecenabled == 0 {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/patrickmn/go-cache"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/transport/http/adp"
 	rsf "github.com/xiaokangwang/VLite/transport/udp/errorCorrection/reconstruction/reedSolomon"
 	"io"
 	"net"
@@ -41,6 +42,9 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 		pa.TxEpochTimeInMs = eovs.TxEpochTimeInMs
 	}
 
+	go pa.Rx()
+	go pa.Tx()
+
 	return pa
 }
 
@@ -70,7 +74,15 @@ type PacketAssembly struct {
 	TxFECSoftPacketSoftLimitPerEpoch int
 }
 
+func (pa *PacketAssembly) Close() error {
+	return pa.conn.Close()
+}
+
 type PacketWireHead struct {
 	Seq uint32 `struc:"uint32"`
 	Id  int    `struc:"uint16"`
+}
+
+func (pa *PacketAssembly) AsConn() net.Conn {
+	return adp.NewRxTxToConn(pa.TxChan, pa.RxChan, pa)
 }

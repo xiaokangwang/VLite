@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/FlowerWrong/netstack v0.0.0-20191009041010-964b57cc9e6e
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
-	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d // indirect
+	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
@@ -17,7 +17,7 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
 	github.com/mustafaturan/bus v1.0.2
 	github.com/mustafaturan/monoton v1.0.0
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pion/dtls v1.5.4 // indirect
 	github.com/pion/dtls/v2 v2.0.0-rc.7
 	github.com/pion/logging v0.2.2
