@@ -11,6 +11,8 @@ require (
 	github.com/google/gopacket v1.1.17
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/juju/ratelimit v1.0.1
+	github.com/klauspost/cpuid v1.2.3 // indirect
+	github.com/klauspost/reedsolomon v1.9.3
 	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
 	github.com/mustafaturan/bus v1.0.2
 	github.com/mustafaturan/monoton v1.0.0
