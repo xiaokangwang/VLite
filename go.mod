@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/FlowerWrong/netstack v0.0.0-20191009041010-964b57cc9e6e
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
+	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259

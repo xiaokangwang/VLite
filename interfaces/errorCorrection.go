@@ -1,5 +1,7 @@
 package interfaces
 
+import "context"
+
 type ErrorCorrectionFacility interface {
 	AddShard(id int, data []byte) (done bool, encoded []byte)
 	Reconstruct() [][]byte
@@ -12,4 +14,8 @@ type ErrorCorrectionFacility interface {
 
 type RSParityShardSum struct {
 	ParityLookupTable []int
+}
+
+type ErrorCorrectionFacilityFactory interface {
+	Create(ctx context.Context) ErrorCorrectionFacility
 }

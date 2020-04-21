@@ -11,6 +11,17 @@ import (
 	"io/ioutil"
 )
 
+func NewRSErrorCorrectionFacilityFactory() interfaces.ErrorCorrectionFacilityFactory {
+	return &RSErrorCorrectionFacilityFactory{}
+}
+
+type RSErrorCorrectionFacilityFactory struct {
+}
+
+func (R RSErrorCorrectionFacilityFactory) Create(ctx context.Context) interfaces.ErrorCorrectionFacility {
+	return NewRSErrorCorrectionFacility(ctx)
+}
+
 func NewRSErrorCorrectionFacility(ctx context.Context) interfaces.ErrorCorrectionFacility {
 
 	rs := &RSErrorCorrectionFacility{buffer: make([][]byte, 0, 256), ctx: ctx}
