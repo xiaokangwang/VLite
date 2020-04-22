@@ -16,6 +16,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"sync/atomic"
 	"time"
 )
@@ -265,7 +266,21 @@ func (pc *ProviderClient) prepareHTTP() (int64, *io.PipeReader, *io.PipeWriter) 
 }
 
 func (pc *ProviderClient) getHttpClient() http.Client {
-	transport := &http.Transport{Proxy: nil,
+
+	UseSystemProxy := false
+
+	sysp := pc.ctx.Value(interfaces.ExtraOptionsHTTPUseSystemProxy)
+
+	if sysp != nil {
+		UseSystemProxy = sysp.(bool)
+	}
+
+	transport := &http.Transport{Proxy: func(request *http.Request) (url *url.URL, err error) {
+		if UseSystemProxy {
+			return http.ProxyFromEnvironment(request)
+		}
+		return nil, nil
+	},
 		DialContext: (&net.Dialer{Timeout: 30 * time.Second,
 			KeepAlive: 30 * time.Second}).DialContext,
 		MaxIdleConns: 100, IdleConnTimeout: 90 * time.Second,

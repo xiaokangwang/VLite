@@ -41,3 +41,5 @@ type ExtraOptionsFECPacketAssemblyOptValue struct {
 }
 
 const ExtraOptionsUDPFECEnabled = "ExtraOptionsUDPFECEnabled"
+
+const ExtraOptionsHTTPUseSystemProxy = "ExtraOptionsHTTPUseSystemProxy"
