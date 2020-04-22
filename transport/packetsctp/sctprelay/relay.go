@@ -10,6 +10,7 @@ import (
 	"github.com/pion/sctp"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport/filteredConn"
+	"github.com/xiaokangwang/VLite/transport/udp/errorCorrection/assembly"
 	"github.com/xtaci/smux"
 	"io"
 	"io/ioutil"
@@ -387,6 +388,17 @@ func (s *PacketSCTPRelay) getConn(conn net.Conn) net.Conn {
 	usageConn := conn
 
 	if s.packetReceivingFrontier == nil {
+
+		fec := false
+
+		fecctxv := s.ctx.Value(interfaces.ExtraOptionsUDPFECEnabled)
+		if fecctxv != nil {
+			fec = fecctxv.(bool)
+		}
+		if fec {
+			usageConn = assembly.NewPacketAssembly(s.ctx, usageConn).AsConn()
+		}
+
 		s.packetReceivingFrontier = filteredConn.NewFilteredConn(usageConn, s.TxDataChannel, s.RxChannel, s.ctx)
 	}
 

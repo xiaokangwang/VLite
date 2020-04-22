@@ -108,6 +108,11 @@ func (s *UdptlsSctpServer) Up() {
 		address := s.Address[4:]
 		var v = httpServer.NewProviderServerSide(address, string(s.password), s, s.ctx)
 		s.udplistener = v
+	} else if strings.HasPrefix(s.Address, "fec+") {
+		s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
+		address := s.Address[4:]
+		var v = udpServer.NewUDPServer(address, s.ctx, s)
+		s.udplistener = v
 	} else {
 		var v = udpServer.NewUDPServer(s.Address, s.ctx, s)
 		s.udplistener = v

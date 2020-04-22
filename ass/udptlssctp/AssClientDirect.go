@@ -33,6 +33,10 @@ func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx contex
 
 	if strings.HasPrefix(remoteAddress, "http") {
 		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
+	} else if strings.HasPrefix(remoteAddress, "fec+") {
+		remoteAddress = remoteAddress[4:]
+		utsc.ctx = context.WithValue(ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
+		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, ctx)
 	} else {
 		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, ctx)
 	}

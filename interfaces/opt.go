@@ -39,3 +39,5 @@ type ExtraOptionsFECPacketAssemblyOptValue struct {
 	RxMaxTimeInSecond int
 	TxEpochTimeInMs   int
 }
+
+const ExtraOptionsUDPFECEnabled = "ExtraOptionsUDPFECEnabled"
