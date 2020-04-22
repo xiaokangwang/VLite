@@ -62,7 +62,7 @@ func (u *udpServer) Listener() {
 			//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
 			connid := []byte(conn.remoteAddr.String())
 			connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, connid)
-			connctx = context.WithValue(u.ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+			connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 			go u.under.Connection(usageConn, connctx)
 		}
 

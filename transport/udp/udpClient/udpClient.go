@@ -28,7 +28,7 @@ func (u *udpClient) Connect() (net.Conn, error, context.Context) {
 	id := []byte(conn.LocalAddr().String())
 	connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, id)
 
-	connctx = context.WithValue(u.ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+	connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	return usageConn, nil, connctx
 }
