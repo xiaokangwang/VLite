@@ -3,20 +3,35 @@ module github.com/xiaokangwang/VLite
 go 1.13
 
 require (
+	//Apache 2.0
 	github.com/FlowerWrong/netstack v0.0.0-20191009041010-964b57cc9e6e
+	//BSD 3
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
+	//MIT
 	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d
+	//ISC License(BSD2 like)
 	github.com/davecgh/go-spew v1.1.1
+	//MIT
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
+	//Apache 2.0
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
+	//BSD 3
 	github.com/google/gopacket v1.1.17
+	//Apache 2.0
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
+	//LGPL
 	github.com/juju/ratelimit v1.0.1
+	//MIT
 	github.com/klauspost/cpuid v1.2.3 // indirect
+	//MIT
 	github.com/klauspost/reedsolomon v1.9.3
+	//MIT
 	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
+	//Apache 2.0
 	github.com/mustafaturan/bus v1.0.2
+	//Apache 2.0
 	github.com/mustafaturan/monoton v1.0.0
+	//MIT
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pion/dtls v1.5.4 // indirect
 	github.com/pion/dtls/v2 v2.0.0-rc.7

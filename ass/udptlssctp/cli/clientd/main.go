@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/txthinking/socks5"
+	"github.com/xiaokangwang/VLite/ass/licenseroll"
 	"github.com/xiaokangwang/VLite/ass/socksinterface"
 	"github.com/xiaokangwang/VLite/ass/udpconn2tun"
 	"github.com/xiaokangwang/VLite/ass/udptlssctp"
@@ -16,11 +17,19 @@ func main() {
 	var password string
 	var address string
 	var addressL string
+	var LicenseRollOnly bool
 
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "127.0.0.1:1988", "")
+	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
 	flag.Parse()
+
+	if LicenseRollOnly {
+		licenseroll.PrintLicense()
+		os.Exit(0)
+	}
+
 	uc := udptlssctp.NewUdptlsSctpClientDirect(address, password, context.Background())
 	uc.Up()
 
