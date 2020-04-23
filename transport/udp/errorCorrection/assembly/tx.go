@@ -6,6 +6,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"io"
+	"math"
 	"sync/atomic"
 	"time"
 )
@@ -16,12 +17,12 @@ type packetAssemblyTxChunkHolder struct {
 	DataShardWithin int
 	Seq             uint32
 
-	LastPollEpochSeq              int
-	MaxSendRemainingInLastPollSeq int
+	InitialSendEpochSeq uint64
+	InitialRemainShard  int64
 }
 
 func (pa *PacketAssembly) Tx() {
-	EpochSeq := 0
+
 	packetSentThisEpoch := 0
 	CurrentTxBufferSlot := 0
 
@@ -46,32 +47,25 @@ func (pa *PacketAssembly) Tx() {
 				}
 			}
 
-			for pa.TxFECSoftPacketSoftLimitPerEpoch >= packetSentThisEpoch {
-				more := false
-				for thisslot, v := range pa.TxRingBuffer {
-					if v.enabled && (pa.TxRingBuffer[thisslot].LastPollEpochSeq != EpochSeq ||
-						pa.TxRingBuffer[thisslot].MaxSendRemainingInLastPollSeq > 0) &&
-						pa.TxRingBuffer[thisslot].DataShardWithin != 0 {
-						if pa.sendFECPacket(thisslot) {
-							return
-						}
-						if pa.TxRingBuffer[thisslot].LastPollEpochSeq != EpochSeq {
-							pa.TxRingBuffer[thisslot].LastPollEpochSeq = EpochSeq
-							pa.TxRingBuffer[thisslot].MaxSendRemainingInLastPollSeq =
-								pa.TxRingBuffer[thisslot].ef.MaxShardYieldRemaining() / 3
-						} else {
-							pa.TxRingBuffer[thisslot].MaxSendRemainingInLastPollSeq--
-						}
+			sendingQuota := pa.TxFECSoftPacketSoftLimitPerEpoch - packetSentThisEpoch
 
-						packetSentThisEpoch++
-						more = true
+			if sendingQuota > 0 {
+				sendingGuidance := pa.SelectPacketToSend(sendingQuota)
+				more := true
+				for more {
+					more = false
+					for i := 0; i < pa.TxRingBufferSize; i++ {
+						if sendingGuidance[i] > 0 {
+							sendingGuidance[i]--
+							pa.sendFECPacket(i)
+							more = true
+						}
 					}
 				}
-				if !more {
-					break
-				}
+
 			}
-			EpochSeq++
+
+			pa.TxEpocSeq++
 			pochTimer.Reset(time.Duration(pa.TxEpochTimeInMs) * time.Millisecond)
 			packetSentThisEpoch = 0
 		case packet := <-pa.TxChan:
@@ -83,7 +77,8 @@ func (pa *PacketAssembly) Tx() {
 			id, wd := pa.TxRingBuffer[CurrentTxBufferSlot].ef.AddData(packet)
 			pa.TxRingBuffer[CurrentTxBufferSlot].DataShardWithin++
 			pa.TxRingBuffer[CurrentTxBufferSlot].Seq = pa.TxNextSeq
-			pa.TxRingBuffer[CurrentTxBufferSlot].LastPollEpochSeq = EpochSeq
+			pa.TxRingBuffer[CurrentTxBufferSlot].InitialSendEpochSeq = pa.TxEpocSeq
+			pa.TxRingBuffer[CurrentTxBufferSlot].InitialRemainShard = 0
 			seq := pa.TxNextSeq
 			if wd != nil {
 				if pa.packAndSend(seq, id, wd) {
@@ -109,6 +104,78 @@ func (pa *PacketAssembly) Tx() {
 
 }
 
+//Return number of packet to send for each slot
+func (pa *PacketAssembly) SelectPacketToSend(quota int) []int {
+	//First we will detect how many shards are released
+
+	unlocks := make([]int, pa.TxRingBufferSize)
+	totalUnlocks := 0
+	//First Pass How many shreds are allowed to send
+	for i := range unlocks {
+		releasedShard := pa.GetReleasedShard(i)
+		SentShard := pa.GetSentShard(i)
+		diff := releasedShard - SentShard
+		totalUnlocks += totalUnlocks
+		unlocks[i] = diff
+	}
+
+	if totalUnlocks <= quota {
+		return unlocks
+	}
+
+	//Or we will scale them based on traffic quota
+
+	scale := float64(totalUnlocks / quota)
+	for i := range unlocks {
+		unlocks[i] = int(math.Round(float64(unlocks[i]) / scale))
+	}
+	return unlocks
+
+}
+func (pa *PacketAssembly) GetReleasedShard(slot int) int {
+	if !pa.TxRingBuffer[slot].enabled {
+		return 0
+	}
+	process := pa.GetProcess(slot)
+	shards := pa.GetTotalShard(slot)
+	return int(math.Round(process * float64(shards)))
+}
+func (pa *PacketAssembly) GetProcess(slot int) float64 {
+	if !pa.TxRingBuffer[slot].enabled {
+		return 1
+	}
+	EpocSpend := pa.TxEpocSeq - pa.TxRingBuffer[slot].InitialSendEpochSeq
+	EpocAll := pa.TxRingBufferSize
+	return float64(EpocSpend) / float64(EpocAll)
+}
+func (pa *PacketAssembly) GetSentShard(slot int) int {
+	if !pa.TxRingBuffer[slot].enabled {
+		return 0
+	}
+	Sent := int(pa.TxRingBuffer[slot].InitialRemainShard) - pa.TxRingBuffer[slot].ef.MaxShardYieldRemaining()
+	return Sent
+}
+
+func (pa *PacketAssembly) GetTotalShard(slot int) int {
+	if !pa.TxRingBuffer[slot].enabled {
+		return 0
+	}
+	sum := pa.TxRingBuffer[slot].InitialRemainShard
+	return int(sum)
+}
+
+func (pa *PacketAssembly) TrafficShapingFunc(process float64) float64 {
+	if process <= 0.1 {
+		return 0
+	}
+
+	if process <= 0.8 {
+		return (process - 0.1) * 1.4
+	}
+
+	return 1
+}
+
 func (pa *PacketAssembly) finishThisSeq(CurrentTxBufferSlot int, packetSentThisEpoch int) (bool, int, int) {
 	//finish this seq
 	thisid, pack, more := pa.TxRingBuffer[CurrentTxBufferSlot].
@@ -118,19 +185,8 @@ func (pa *PacketAssembly) finishThisSeq(CurrentTxBufferSlot int, packetSentThisE
 	}
 	packetSentThisEpoch++
 	pa.TxRingBuffer[CurrentTxBufferSlot].enabled = more
-
-	SendingSlot := CurrentTxBufferSlot
-	SendAmount := pa.TxRingBuffer[CurrentTxBufferSlot].
-		ef.MaxShardYieldRemaining() / 3
-	//Initial Burst Send
-	SentAmount := 0
-	for pa.TxRingBuffer[SendingSlot].enabled && SendAmount > SentAmount {
-		if pa.sendFECPacket(SendingSlot) {
-			return true, CurrentTxBufferSlot, packetSentThisEpoch
-		}
-		packetSentThisEpoch++
-		SentAmount++
-	}
+	pa.TxRingBuffer[CurrentTxBufferSlot].InitialRemainShard = int64(pa.TxRingBuffer[CurrentTxBufferSlot].
+		ef.MaxShardYieldRemaining())
 
 	CurrentTxBufferSlot++
 
@@ -139,7 +195,7 @@ func (pa *PacketAssembly) finishThisSeq(CurrentTxBufferSlot int, packetSentThisE
 	}
 	pa.TxRingBuffer[CurrentTxBufferSlot] = packetAssemblyTxChunkHolder{
 		ef:              pa.ecff.Create(pa.ctx),
-		enabled:         true,
+		enabled:         false,
 		DataShardWithin: 0,
 	}
 	pa.TxNextSeq++

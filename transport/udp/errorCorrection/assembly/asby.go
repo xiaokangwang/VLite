@@ -16,7 +16,7 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	pa.ctx = ctx
 	pa.conn = conn
 
-	pa.RxMaxTimeInSecond = 4
+	pa.RxMaxTimeInSecond = 9
 	pa.TxNextSeq = 1
 	pa.TxRingBufferSize = 30
 	pa.TxRingBuffer = make([]packetAssemblyTxChunkHolder, pa.TxRingBufferSize)
@@ -72,6 +72,8 @@ type PacketAssembly struct {
 
 	TxEpochTimeInMs                  int
 	TxFECSoftPacketSoftLimitPerEpoch int
+
+	TxEpocSeq uint64
 }
 
 func (pa *PacketAssembly) Close() error {
