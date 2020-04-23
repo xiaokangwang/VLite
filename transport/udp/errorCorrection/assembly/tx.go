@@ -84,7 +84,6 @@ func (pa *PacketAssembly) Tx() {
 				if pa.packAndSend(seq, id, wd) {
 					return
 				}
-				pa.TxShardOriginal += 1
 				packetSentThisEpoch++
 			}
 			if pa.TxRingBuffer[CurrentTxBufferSlot].DataShardWithin >=
@@ -199,8 +198,6 @@ func (pa *PacketAssembly) finishThisSeq(CurrentTxBufferSlot int, packetSentThisE
 	pa.TxRingBuffer[CurrentTxBufferSlot].InitialRemainShard = int64(pa.TxRingBuffer[CurrentTxBufferSlot].
 		ef.MaxShardYieldRemaining())
 
-	pa.TxShardFEC++
-
 	CurrentTxBufferSlot++
 
 	if CurrentTxBufferSlot == pa.TxRingBufferSize {
@@ -225,8 +222,6 @@ func (pa *PacketAssembly) sendFECPacket(SendingSlot int) bool {
 		return true
 	}
 	pa.TxRingBuffer[SendingSlot].enabled = more2
-
-	pa.TxShardFEC += 1
 	return false
 }
 
@@ -240,7 +235,6 @@ func (pa *PacketAssembly) packAndSend(seq uint32, id int, wd []byte) bool {
 		fmt.Println(err.Error())
 		return true
 	}
-	pa.TxBytes += uint64(len(res))
 	return false
 }
 
@@ -272,7 +266,5 @@ func (pa *PacketAssembly) TxWithoutFEC(pack []byte) bool {
 		fmt.Println(err.Error())
 		return true
 	}
-	pa.TxBytes += uint64(len(res))
-	pa.TxShardOriginalNoFEC += 1
 	return false
 }
