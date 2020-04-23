@@ -47,6 +47,16 @@ func main() {
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPUseSystemHTTPProxy, true)
 	}
 
+	if UseSystemSocksProxy {
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPUseSystemSocksProxy, true)
+	}
+
+	if HTTPDialAddr != "" {
+		ox := interfaces.ExtraOptionsHTTPDialAddrValue{}
+		ox.Addr = HTTPDialAddr
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPDialAddr, ox)
+	}
+
 	if NetworkBuffering != 0 {
 		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
