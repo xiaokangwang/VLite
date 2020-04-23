@@ -29,6 +29,8 @@ func (pa *PacketAssembly) Rx() {
 			fmt.Println(err.Error())
 			return
 		}
+		pa.RxBytes += uint64(n)
+
 		readendata := inbuf[:n]
 		readendataReader := bytes.NewReader(readendata)
 		pw := &PacketWireHead{}
@@ -42,6 +44,7 @@ func (pa *PacketAssembly) Rx() {
 		}
 		if pw.Seq == 0 {
 			pa.RxChan <- payload
+			pa.TxShardOriginalNoFEC += 1
 		} else {
 			parch := &packetAssemblyRxChunkHolder{}
 			parch.doneAll = false
@@ -60,6 +63,7 @@ func (pa *PacketAssembly) Rx() {
 				if data != nil {
 					pa.RxChan <- data
 					parch.doneBitmap.Set(pw.Id, true)
+					pa.RxShardOriginal++
 				}
 				if done {
 					reconres := parch.ef.Reconstruct()
@@ -67,6 +71,7 @@ func (pa *PacketAssembly) Rx() {
 						for i, v := range reconres {
 							if !parch.doneBitmap.Get(i) {
 								pa.RxChan <- v
+								pa.RxShardRecovered++
 							}
 						}
 					}

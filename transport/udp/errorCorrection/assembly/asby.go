@@ -44,6 +44,7 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 
 	go pa.Rx()
 	go pa.Tx()
+	go pa.Report()
 
 	return pa
 }
@@ -74,6 +75,17 @@ type PacketAssembly struct {
 	TxFECSoftPacketSoftLimitPerEpoch int
 
 	TxEpocSeq uint64
+
+	RxShardOriginalNoFEC uint64
+	RxShardOriginal      uint64
+	RxShardRecovered     uint64
+
+	TxShardOriginal      uint64
+	TxShardFEC           uint64
+	TxShardOriginalNoFEC uint64
+
+	RxBytes uint64
+	TxBytes uint64
 }
 
 func (pa *PacketAssembly) Close() error {
