@@ -115,7 +115,11 @@ func (pa *PacketAssembly) SelectPacketToSend(quota int) []int {
 		releasedShard := pa.GetReleasedShard(i)
 		SentShard := pa.GetSentShard(i)
 		diff := releasedShard - SentShard
-		totalUnlocks += totalUnlocks
+		remainShard := pa.GetRemainingShard(i)
+		if diff > remainShard {
+			diff = remainShard
+		}
+		totalUnlocks += diff
 		unlocks[i] = diff
 	}
 
@@ -131,6 +135,12 @@ func (pa *PacketAssembly) SelectPacketToSend(quota int) []int {
 	}
 	return unlocks
 
+}
+func (pa *PacketAssembly) GetRemainingShard(slot int) int {
+	if !pa.TxRingBuffer[slot].enabled {
+		return 0
+	}
+	return pa.TxRingBuffer[slot].ef.MaxShardYieldRemaining()
 }
 func (pa *PacketAssembly) GetReleasedShard(slot int) int {
 	if !pa.TxRingBuffer[slot].enabled {
@@ -152,7 +162,7 @@ func (pa *PacketAssembly) GetSentShard(slot int) int {
 	if !pa.TxRingBuffer[slot].enabled {
 		return 0
 	}
-	Sent := int(pa.TxRingBuffer[slot].InitialRemainShard) - pa.TxRingBuffer[slot].ef.MaxShardYieldRemaining()
+	Sent := int(pa.TxRingBuffer[slot].InitialRemainShard) - pa.GetRemainingShard(slot)
 	return Sent
 }
 
