@@ -42,4 +42,18 @@ type ExtraOptionsFECPacketAssemblyOptValue struct {
 
 const ExtraOptionsUDPFECEnabled = "ExtraOptionsUDPFECEnabled"
 
-const ExtraOptionsHTTPUseSystemProxy = "ExtraOptionsHTTPUseSystemProxy"
+const ExtraOptionsHTTPUseSystemHTTPProxy = "ExtraOptionsHTTPUseSystemHTTPProxy"
+
+const ExtraOptionsHTTPNetworkBufferSize = "ExtraOptionsHTTPNetworkBufferSize"
+
+type ExtraOptionsHTTPNetworkBufferSizeValue struct {
+	NetworkBufferSize int
+}
+
+const ExtraOptionsHTTPUseSystemSocksProxy = "ExtraOptionsHTTPUseSystemSocksProxy"
+
+const ExtraOptionsHTTPDialAddr = "ExtraOptionsHTTPDialAddr"
+
+type ExtraOptionsHTTPDialAddrValue struct {
+	Addr string
+}

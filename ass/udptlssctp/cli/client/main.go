@@ -8,6 +8,7 @@ import (
 	"github.com/xiaokangwang/VLite/ass/licenseroll"
 	"github.com/xiaokangwang/VLite/ass/socksinterface"
 	"github.com/xiaokangwang/VLite/ass/udptlssctp"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,10 +20,22 @@ func main() {
 	var addressL string
 	var LicenseRollOnly bool
 
+	var UseSystemHTTPProxy bool
+	var UseSystemSocksProxy bool
+
+	var NetworkBuffering int
+
+	var HTTPDialAddr string
+
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "", "")
 	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
+	flag.BoolVar(&UseSystemHTTPProxy, "UseSystemHTTPProxy", false, "Respect System HTTP Proxy Environment Var  HTTP_PROXY HTTPS_PROXY (apply to HTTP transport only)")
+	flag.BoolVar(&UseSystemSocksProxy, "UseSystemSocksProxy", false, "Respect System Socks Proxy Environment Var ALL_PROXY (apply to HTTP transport only)")
+	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
+	flag.StringVar(&HTTPDialAddr, "HTTPDialAddr", "", "If set, HTTP Connections will dial this address instead of requesting DNS result(apply to HTTP transport only)")
+
 	flag.Parse()
 
 	if LicenseRollOnly {
@@ -30,7 +43,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	uc := udptlssctp.NewUdptlsSctpClient(address, password, context.Background())
+	ctx := context.Background()
+
+	if UseSystemHTTPProxy {
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPUseSystemHTTPProxy, true)
+	}
+
+	if NetworkBuffering != 0 {
+		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
+	}
+
+	uc := udptlssctp.NewUdptlsSctpClient(address, password, ctx)
 	socks, err := socks5.NewClassicServer(addressL, "0.0.0.0", "", "", 0, 0, 0, 0)
 	if err != nil {
 		panic(err)

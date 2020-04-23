@@ -12,6 +12,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
 	"github.com/xiaokangwang/VLite/transport/http/httpconsts"
 	"github.com/xiaokangwang/VLite/transport/http/wrapper"
+	"golang.org/x/net/proxy"
 	"io"
 	mrand "math/rand"
 	"net"
@@ -184,7 +185,14 @@ func (pc *ProviderClient) DialTxConnection(ctx context.Context) {
 
 	masking, preader, pwriter := pc.prepareHTTP()
 
-	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan, 0, ctx)
+	NetworkBuffering := 0
+
+	bufferingCfg := ctx.Value(interfaces.ExtraOptionsHTTPNetworkBufferSize)
+	if bufferingCfg != nil {
+		NetworkBuffering = bufferingCfg.(*interfaces.ExtraOptionsHTTPNetworkBufferSizeValue).NetworkBufferSize
+	}
+
+	go wrapper.SendPacketOverWriter(masking, pwriter, pc.TxChan, NetworkBuffering, ctx)
 
 	req, err := http.NewRequest("POST", pc.HttpRequestEndpoint, preader)
 	if err != nil {
@@ -269,11 +277,29 @@ func (pc *ProviderClient) getHttpClient() http.Client {
 
 	UseSystemProxy := false
 
-	sysp := pc.ctx.Value(interfaces.ExtraOptionsHTTPUseSystemProxy)
+	sysp := pc.ctx.Value(interfaces.ExtraOptionsHTTPUseSystemHTTPProxy)
 
 	if sysp != nil {
 		UseSystemProxy = sysp.(bool)
 	}
+
+	useSystemSocksProxy := false
+
+	socksvp := pc.ctx.Value(interfaces.ExtraOptionsHTTPUseSystemSocksProxy)
+	if socksvp != nil {
+		useSystemSocksProxy = socksvp.(bool)
+	}
+
+	HTTPDialAddr := ""
+
+	httpdialaddrvp := pc.ctx.Value(interfaces.ExtraOptionsHTTPDialAddr)
+
+	if httpdialaddrvp != nil {
+		HTTPDialAddr = httpdialaddrvp.(*interfaces.ExtraOptionsHTTPDialAddrValue).Addr
+	}
+
+	origDialContext := (&net.Dialer{Timeout: 30 * time.Second,
+		KeepAlive: 30 * time.Second}).DialContext
 
 	transport := &http.Transport{Proxy: func(request *http.Request) (url *url.URL, err error) {
 		if UseSystemProxy {
@@ -281,8 +307,19 @@ func (pc *ProviderClient) getHttpClient() http.Client {
 		}
 		return nil, nil
 	},
-		DialContext: (&net.Dialer{Timeout: 30 * time.Second,
-			KeepAlive: 30 * time.Second}).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+			Dialaddr := addr
+			if HTTPDialAddr != "" {
+				Dialaddr = HTTPDialAddr
+			}
+
+			if useSystemSocksProxy {
+				dialerProxy := proxy.FromEnvironment()
+				return dialerProxy.Dial(network, Dialaddr)
+			} else {
+				return origDialContext(ctx, network, Dialaddr)
+			}
+		},
 		MaxIdleConns: 100, IdleConnTimeout: 90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second}

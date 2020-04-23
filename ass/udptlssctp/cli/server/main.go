@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/xiaokangwang/VLite/ass/licenseroll"
 	"github.com/xiaokangwang/VLite/ass/udptlssctp"
+	"github.com/xiaokangwang/VLite/interfaces"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,8 @@ func main() {
 	var rateLimitSpeed int
 	var LicenseRollOnly bool
 
+	var NetworkBuffering int
+
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 
@@ -27,6 +30,8 @@ func main() {
 	flag.IntVar(&rateLimitSpeed, "rateLimitSpeed", 0, "")
 	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
 
+	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
+
 	flag.Parse()
 
 	if LicenseRollOnly {
@@ -34,7 +39,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	us := udptlssctp.NewUdptlsSctpServer(address, password, context.Background())
+	ctx := context.Background()
+	if NetworkBuffering != 0 {
+		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
+	}
+
+	us := udptlssctp.NewUdptlsSctpServer(address, password, ctx)
 
 	us.Up()
 

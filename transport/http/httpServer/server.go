@@ -27,26 +27,24 @@ import (
 
 func NewProviderServerSide(listenaddr string, password string, Uplistener transport.UnderlayTransportListener, ctx context.Context) *ProviderServerSide {
 	pss := &ProviderServerSide{
-		clientSet:        new(sync.Map),
-		addr:             listenaddr,
-		hh:               headerHolder.NewHttpHeaderHolderProcessor(password),
-		Uplistener:       Uplistener,
-		authlocation:     httpconsts.Authlocation_Path,
-		networkbuffering: 0,
-		ctx:              ctx,
+		clientSet:    new(sync.Map),
+		addr:         listenaddr,
+		hh:           headerHolder.NewHttpHeaderHolderProcessor(password),
+		Uplistener:   Uplistener,
+		authlocation: httpconsts.Authlocation_Path,
+		ctx:          ctx,
 	}
 	go pss.Start()
 	return pss
 }
 
 type ProviderServerSide struct {
-	clientSet        *sync.Map
-	addr             string
-	hh               *headerHolder.HttpHeaderHolderProcessor
-	Uplistener       transport.UnderlayTransportListener
-	authlocation     int
-	networkbuffering int
-	ctx              context.Context
+	clientSet    *sync.Map
+	addr         string
+	hh           *headerHolder.HttpHeaderHolderProcessor
+	Uplistener   transport.UnderlayTransportListener
+	authlocation int
+	ctx          context.Context
 }
 
 func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -238,6 +236,11 @@ var WriteBufferSize = 0
 
 func (pcn *ProviderConnServerSide) Get(rw http.ResponseWriter, r *http.Request, masker int64, ctx context.Context) {
 	rw.Header().Add("X-Accel-Buffering", "no")
+	NetworkBuffering := 0
 
-	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, pcn.pss.networkbuffering, ctx)
+	bufferingCfg := ctx.Value(interfaces.ExtraOptionsHTTPNetworkBufferSize)
+	if bufferingCfg != nil {
+		NetworkBuffering = bufferingCfg.(*interfaces.ExtraOptionsHTTPNetworkBufferSizeValue).NetworkBufferSize
+	}
+	wrapper.SendPacketOverWriter(masker, rw, pcn.TxChan, NetworkBuffering, ctx)
 }
