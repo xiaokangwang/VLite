@@ -161,7 +161,7 @@ func (s *UdptlsSctpClient) NotifyMeltdown(reason error) {
 
 func (s *UdptlsSctpClient) Up() {
 	//Open Connection
-	conn, err, connctx := s.udpdialer.Connect()
+	conn, err, connctx := s.udpdialer.Connect(s.ctx)
 	if err != nil {
 		log.Println(err)
 		debug.PrintStack()

@@ -43,12 +43,12 @@ type ProviderClientCreator struct {
 	ctx                 context.Context
 }
 
-func (p ProviderClientCreator) Connect() (net.Conn, error, context.Context) {
+func (p ProviderClientCreator) Connect(ctx context.Context) (net.Conn, error, context.Context) {
 
 	pc := NewProviderClient(p.HttpRequestEndpoint,
 		p.MaxTxConnection,
 		p.MaxRxConnection,
-		p.password, p.ctx)
+		p.password, ctx)
 
 	return pc.AsConn(), nil, pc.connctx
 }
@@ -66,6 +66,14 @@ func NewProviderClient(HttpRequestEndpoint string,
 		ctx:             ctx}
 	id := make([]byte, 24)
 	io.ReadFull(rand.Reader, id)
+
+	unival := ctx.Value(interfaces.ExtraOptionsUniConnAttrib)
+
+	if unival != nil {
+		uniAtt := unival.(*interfaces.ExtraOptionsUniConnAttribValue)
+		copy(id, uniAtt.ID)
+	}
+
 	prc.ID = id
 	prc.hh = headerHolder.NewHttpHeaderHolderProcessor(password)
 
@@ -235,6 +243,13 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64, ctx conte
 	if boostConnection {
 		ph.Flags |= proto.HttpHeaderFlag_BoostConnection
 		fmt.Println("Boost Mark Set")
+	}
+
+	unival := ctx.Value(interfaces.ExtraOptionsUniConnAttrib)
+
+	if unival != nil {
+		uniAtt := unival.(*interfaces.ExtraOptionsUniConnAttribValue)
+		ph.ConnIter = uniAtt.Iter
 	}
 
 	BearToken := pc.hh.Seal(ph)

@@ -135,7 +135,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	ppsd.noReplayChecker = antiReplayWindow.NewAntiReplayWindow(119)
 	ppsd.boostConnectionGSRV = &interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequestValue{ShouldClose: make(chan interface{})}
 
-	a, ok := pss.clientSet.LoadOrStore(beardata.ConnID, ppsd)
+	a, ok := pss.clientSet.LoadOrStore(synthid(beardata), ppsd)
 
 	if ok {
 		ppsd = a.(*ProviderConnServerSide)
@@ -143,12 +143,24 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 		connid := ppsd.ID[:]
 		connctx := context.WithValue(pss.ctx, interfaces.ExtraOptionsConnID, connid)
 		connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
+		univ := &interfaces.ExtraOptionsUniConnAttribValue{
+			ID:   ppsd.ID[:],
+			Rand: beardata.Rand[:],
+			Iter: beardata.ConnIter,
+		}
+
+		connctx = context.WithValue(connctx, interfaces.ExtraOptionsUniConnAttrib, univ)
+
+		connctx = pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx)
+
+		//Should use connctx
+
 		connctx2, cancel := context.WithCancel(connctx)
 		ppsd.drop = cancel
 		ppsd.ctx = connctx2
 
 		go ppsd.BoostingListener(connctx2)
-		go pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx2)
 	}
 
 	if !ppsd.noReplayChecker.Check(beardata.Rand[:]) {

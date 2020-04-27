@@ -57,3 +57,11 @@ const ExtraOptionsHTTPDialAddr = "ExtraOptionsHTTPDialAddr"
 type ExtraOptionsHTTPDialAddrValue struct {
 	Addr string
 }
+
+const ExtraOptionsUniConnAttrib = "ExtraOptionsUniConnAttrib"
+
+type ExtraOptionsUniConnAttribValue struct {
+	ID   []byte
+	Rand []byte
+	Iter int32
+}

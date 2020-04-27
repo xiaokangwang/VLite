@@ -14,6 +14,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
+	"github.com/xiaokangwang/VLite/transport/uni/uniclient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpClient"
 	"log"
@@ -31,8 +32,21 @@ func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx contex
 
 	utsc.ctx = ctxwbus
 
+	useUniConn := false
+
+	if strings.HasPrefix(remoteAddress, "uni+") {
+		useUniConn = true
+		remoteAddress = remoteAddress[4:]
+
+	}
+
 	if strings.HasPrefix(remoteAddress, "http") {
 		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
+		if useUniConn {
+			unis := uniclient.NewUnifiedConnectionClient(utsc.udpdialer, utsc.ctx)
+			utsc.udpdialer = unis
+			utsc.uni = unis
+		}
 	} else if strings.HasPrefix(remoteAddress, "fec+") {
 		remoteAddress = remoteAddress[4:]
 		utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
@@ -50,6 +64,8 @@ type UdptlsSctpClientDirect struct {
 	udpdialer transport.UnderlayTransportDialer
 	udprelay  *udpsctpserver.PacketSCTPRelay
 	udpserver *client2.UDPClientContext
+
+	uni *uniclient.UnifiedConnectionClient
 
 	password []byte
 
@@ -97,7 +113,7 @@ func (s *UdptlsSctpClientDirect) NotifyMeltdown(reason error) {
 
 func (s *UdptlsSctpClientDirect) Up() {
 	//Open Connection
-	conn, err, connctx := s.udpdialer.Connect()
+	conn, err, connctx := s.udpdialer.Connect(s.ctx)
 	if err != nil {
 		log.Println(err)
 	}
@@ -154,4 +170,8 @@ func (s *UdptlsSctpClientDirect) Up() {
 
 	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
 	s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+}
+
+func (s *UdptlsSctpClientDirect) Reconnect() {
+	s.uni.ReconnectUnder(s.ctx)
 }

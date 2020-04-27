@@ -5,9 +5,11 @@ import (
 	"github.com/mustafaturan/bus"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
+	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/httpServer"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/udp/udpServer"
+	"github.com/xiaokangwang/VLite/transport/uni/uniserver"
 	"github.com/xiaokangwang/VLite/workers/server"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpServer"
 	"net"
@@ -41,8 +43,9 @@ type UdptlsSctpServer struct {
 	msgbus *bus.Bus
 }
 
-func (s UdptlsSctpServer) Connection(conn net.Conn, ctx context.Context) {
-	s.Process(conn, ctx)
+func (s UdptlsSctpServer) Connection(conn net.Conn, ctx context.Context) context.Context {
+	go s.Process(conn, ctx)
+	return ctx
 }
 
 func (s *UdptlsSctpServer) Process(conn net.Conn, connctx context.Context) {
@@ -103,11 +106,25 @@ func (s *UdptlsSctpServer) Process(conn net.Conn, connctx context.Context) {
 	relay.RateLimitTcpServerWrite(s.ratelimitServerTCPWriteBytePerSecond, s.ratelimitServerTCPWriteMaxBucketSize, s.ratelimitServerTCPWriteInitialSize)
 }
 func (s *UdptlsSctpServer) Up() {
+	useUniConn := false
+	var unitransport transport.UnderlayTransportListener
+	if strings.HasPrefix(s.Address, "uni+") {
+		useUniConn = true
+		s.Address = s.Address[4:]
+		unis := uniserver.NewUnifiedConnectionTransportHub(s, s.ctx)
+		unitransport = unis
+	}
+
 	//Open Connection
 	if strings.HasPrefix(s.Address, "http") {
 		address := s.Address[4:]
-		var v = httpServer.NewProviderServerSide(address, string(s.password), s, s.ctx)
-		s.udplistener = v
+		if useUniConn {
+			var v = httpServer.NewProviderServerSide(address, string(s.password), unitransport, s.ctx)
+			s.udplistener = v
+		} else {
+			var v = httpServer.NewProviderServerSide(address, string(s.password), s, s.ctx)
+			s.udplistener = v
+		}
 	} else if strings.HasPrefix(s.Address, "fec+") {
 		s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
 		address := s.Address[4:]

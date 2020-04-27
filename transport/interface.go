@@ -14,9 +14,9 @@ type Transport interface {
 }
 
 type UnderlayTransportListener interface {
-	Connection(conn net.Conn, ctx context.Context)
+	Connection(conn net.Conn, ctx context.Context) context.Context
 }
 
 type UnderlayTransportDialer interface {
-	Connect() (net.Conn, error, context.Context)
+	Connect(ctx context.Context) (net.Conn, error, context.Context)
 }

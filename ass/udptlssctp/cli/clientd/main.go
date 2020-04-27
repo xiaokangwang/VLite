@@ -76,6 +76,9 @@ func main() {
 	go socks.RunUDPServer()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sigs
+	uc.Reconnect()
 	<-sigs
 
 }

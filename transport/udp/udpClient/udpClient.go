@@ -17,7 +17,7 @@ type udpClient struct {
 	ctx     context.Context
 }
 
-func (u *udpClient) Connect() (net.Conn, error, context.Context) {
+func (u *udpClient) Connect(ctx context.Context) (net.Conn, error, context.Context) {
 	conn, err := net.Dial("udp", u.dest)
 	if err != nil {
 		return nil, err, nil
