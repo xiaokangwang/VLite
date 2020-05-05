@@ -89,12 +89,23 @@ func NewProviderClient(HttpRequestEndpoint string,
 
 	}
 
+	UseWs := ctx.Value(interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP)
+
+	if UseWs != nil {
+		prc.useWebsocket = UseWs.(bool)
+	}
+
 	vctx := context.WithValue(ctx, interfaces.ExtraOptionsConnID, id)
 
 	vctx = context.WithValue(vctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	prc.connctx, prc.closeCtx = context.WithCancel(vctx)
-	go prc.StartConnections()
+	if prc.useWebsocket {
+		go prc.StartConnectionsWS()
+	} else {
+		go prc.StartConnections()
+
+	}
 	go prc.BoostingListener()
 
 	return prc
@@ -117,7 +128,6 @@ func (pc *ProviderClient) StartConnections() {
 		<-time.NewTimer(time.Second).C
 	}
 }
-
 func (pc *ProviderClient) DialTxConnectionD(ctx context.Context) {
 	var shouldNotRedialDef = int32(0)
 	var shouldNotRedial *int32
@@ -176,6 +186,8 @@ type ProviderClient struct {
 	closeCtx context.CancelFunc
 
 	authlocation int
+
+	useWebsocket bool
 }
 
 func (pc *ProviderClient) GetConnCtx() context.Context {
@@ -226,6 +238,18 @@ func (pc *ProviderClient) DialTxConnection(ctx context.Context) {
 func (pc *ProviderClient) reqprepare(req *http.Request, masking int64, ctx context.Context) {
 	req.Header.Set("User-Agent", "")
 
+	BearToken := pc.createBearToken(masking, ctx)
+
+	switch pc.authlocation {
+	case httpconsts.Authlocation_Header:
+		req.Header.Set("Authorization", "Bearer "+BearToken)
+		break
+	case httpconsts.Authlocation_Path:
+		req.URL.Path = "/" + BearToken
+	}
+}
+
+func (pc *ProviderClient) createBearToken(masking int64, ctx context.Context) string {
 	ph := proto.HttpHeaderHolder{
 		Masker: masking,
 	}
@@ -245,6 +269,11 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64, ctx conte
 		fmt.Println("Boost Mark Set")
 	}
 
+	if pc.useWebsocket {
+		ph.Flags |= proto.HttpHeaderFlag_WebsocketConnection
+		fmt.Println("WS Mark Set")
+	}
+
 	unival := ctx.Value(interfaces.ExtraOptionsUniConnAttrib)
 
 	if unival != nil {
@@ -253,14 +282,7 @@ func (pc *ProviderClient) reqprepare(req *http.Request, masking int64, ctx conte
 	}
 
 	BearToken := pc.hh.Seal(ph)
-
-	switch pc.authlocation {
-	case httpconsts.Authlocation_Header:
-		req.Header.Set("Authorization", "Bearer "+BearToken)
-		break
-	case httpconsts.Authlocation_Path:
-		req.URL.Path = "/" + BearToken
-	}
+	return BearToken
 }
 
 func (pc *ProviderClient) reqprepareTest(req *http.Request, masking int64) {

@@ -37,7 +37,17 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 
 	utsc.ctx = ctxwbus
 
+	useWs := false
+
+	if strings.HasPrefix(remoteAddress, "ws+") {
+		useWs = true
+		remoteAddress = remoteAddress[3:]
+	}
+
 	if strings.HasPrefix(remoteAddress, "http") {
+		if useWs {
+			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP, useWs)
+		}
 		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
 	} else if strings.HasPrefix(remoteAddress, "fec+") {
 		remoteAddress = remoteAddress[4:]

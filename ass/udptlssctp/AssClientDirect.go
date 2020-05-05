@@ -40,9 +40,19 @@ func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx contex
 
 	}
 
+	useWs := false
+
+	if strings.HasPrefix(remoteAddress, "ws+") {
+		useWs = true
+		remoteAddress = remoteAddress[3:]
+	}
+
 	if strings.HasPrefix(remoteAddress, "http") {
 		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
 		if useUniConn {
+			if useWs {
+				utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP, useWs)
+			}
 			unis := uniclient.NewUnifiedConnectionClient(utsc.udpdialer, utsc.ctx)
 			utsc.udpdialer = unis
 			utsc.uni = unis

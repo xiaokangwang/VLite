@@ -110,3 +110,5 @@ type HttpHeaderHolder struct {
 }
 
 const HttpHeaderFlag_BoostConnection = 1 << 0
+const HttpHeaderFlag_WebsocketConnection = 1 << 1
+const HttpHeaderFlag_WebsocketAlernativeDataChannelConnection = 1 << 2

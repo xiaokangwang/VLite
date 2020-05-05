@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/interfaces/ibus/connidutil"
@@ -15,6 +16,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
 	"github.com/xiaokangwang/VLite/transport/http/httpconsts"
+	"github.com/xiaokangwang/VLite/transport/http/websocketadp"
 	"github.com/xiaokangwang/VLite/transport/http/wrapper"
 	"math"
 	"net/http"
@@ -192,6 +194,18 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 		if erremit != nil {
 			fmt.Println(erremit.Error())
 		}
+	}
+
+	upg := websocket.Upgrader{}
+	if beardata.Flags&proto.HttpHeaderFlag_WebsocketConnection != 0 {
+		conn, err := upg.Upgrade(rw, r, nil)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		wsconn := websocketadp.NewWsAdp(conn)
+		go wrapper.ReceivePacketOverReader(beardata.Masker, wsconn, ppsd.RxChan, currentHTTPRequestCtx)
+		wrapper.SendPacketOverWriter(beardata.Masker, wsconn, ppsd.TxChan, 0, currentHTTPRequestCtx)
 	}
 
 	if r.Method == "GET" {

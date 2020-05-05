@@ -141,10 +141,14 @@ func (pc *ProviderClient) boostConnScaleMgr(boostingconnctx context.Context, exp
 				thisctx = context.WithValue(thisctx,
 					interfaces.ExtraOptionsBoostConnectionShouldNotRedial,
 					RedialValue)
-				if isTx {
-					go pc.DialTxConnectionD(thisctx)
+				if pc.useWebsocket {
+					go pc.DialWsConnectionD(thisctx)
 				} else {
-					go pc.DialRxConnectionD(thisctx)
+					if isTx {
+						go pc.DialTxConnectionD(thisctx)
+					} else {
+						go pc.DialRxConnectionD(thisctx)
+					}
 				}
 				cancelQueue.Put(cancel)
 			}

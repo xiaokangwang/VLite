@@ -65,3 +65,5 @@ type ExtraOptionsUniConnAttribValue struct {
 	Rand []byte
 	Iter int32
 }
+
+const ExtraOptionsUseWebSocketInsteadOfHTTP = "ExtraOptionsUseWebSocketInsteadOfHTTP"
