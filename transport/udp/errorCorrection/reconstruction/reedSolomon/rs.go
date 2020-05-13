@@ -78,8 +78,10 @@ func (r *RSErrorCorrectionFacility) AddShard(id int, data []byte) (done bool, en
 	if ml.Len <= 0 {
 		//This is a reconstruction packet
 		r.TotalDataShards = int(-ml.Len)
-		r.buffer[id] = datafecpayload
-		r.ShardInput++
+		if r.buffer[id] == nil {
+			r.buffer[id] = datafecpayload
+			r.ShardInput++
+		}
 
 		if r.TotalDataShards <= (r.DataInput + r.ShardInput) {
 			return true, nil
@@ -88,9 +90,11 @@ func (r *RSErrorCorrectionFacility) AddShard(id int, data []byte) (done bool, en
 		}
 	} else {
 		//This is a data packet
-		r.DataInput++
+		if r.buffer[id] == nil {
+			r.DataInput++
 
-		r.buffer[id] = data
+			r.buffer[id] = data
+		}
 
 		doneret := false
 		if r.TotalDataShards != 0 {
