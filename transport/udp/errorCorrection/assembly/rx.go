@@ -21,12 +21,14 @@ func (pa *PacketAssembly) Rx() {
 	for {
 		if pa.ctx.Err() != nil {
 			fmt.Println(pa.ctx.Err().Error())
+			pa.cancel()
 			return
 		}
 		inbuf := make([]byte, 1650)
 		n, err := pa.conn.Read(inbuf)
 		if err != nil {
 			fmt.Println(err.Error())
+			pa.cancel()
 			return
 		}
 		pa.RxBytes += uint64(n)
@@ -74,8 +76,9 @@ func (pa *PacketAssembly) Rx() {
 								pa.RxShardRecovered++
 							}
 						}
+						parch.doneAll = true
 					}
-					parch.doneAll = true
+
 				}
 
 			}

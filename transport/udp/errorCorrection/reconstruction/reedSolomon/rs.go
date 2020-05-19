@@ -9,6 +9,7 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces"
 	"io"
 	"io/ioutil"
+	"log"
 )
 
 func NewRSErrorCorrectionFacilityFactory() interfaces.ErrorCorrectionFacilityFactory {
@@ -113,10 +114,12 @@ func (r *RSErrorCorrectionFacility) Reconstruct() [][]byte {
 	if r.TotalDataShards != 0 {
 		if r.TotalDataShards <= (r.DataInput + r.ShardInput) {
 		} else {
-			panic("Not Ready")
+			log.Println("Rs not ready")
+			return nil
 		}
 	} else {
-		panic("Not Ready")
+		log.Println("Rs not ready")
+		return nil
 	}
 
 	if r.DataInput >= r.TotalDataShards {
@@ -134,7 +137,8 @@ func (r *RSErrorCorrectionFacility) Reconstruct() [][]byte {
 	r.matchsize(true)
 	err = rs.ReconstructData(r.buffer)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return nil
 	}
 
 	//Recover Len

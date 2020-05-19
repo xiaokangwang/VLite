@@ -14,6 +14,8 @@ import (
 func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	pa := &PacketAssembly{}
 	pa.ctx = ctx
+	pa.ctx, pa.cancel = context.WithCancel(pa.ctx)
+
 	pa.conn = conn
 
 	pa.RxMaxTimeInSecond = 9
@@ -86,6 +88,8 @@ type PacketAssembly struct {
 
 	RxBytes uint64
 	TxBytes uint64
+
+	cancel context.CancelFunc
 }
 
 func (pa *PacketAssembly) Close() error {
