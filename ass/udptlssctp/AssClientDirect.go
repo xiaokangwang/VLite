@@ -101,7 +101,7 @@ func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx 
 func (s *UdptlsSctpClientDirect) DialDirect(address string, port uint16) (net.Conn, error) {
 	var Stream io.ReadWriteCloser
 	if s.uni != nil {
-		s.udprelay = s.puni.ClientOpenStream()
+		Stream = s.puni.ClientOpenStream()
 	} else {
 		Stream = s.udprelay.ClientOpenStream()
 	}
