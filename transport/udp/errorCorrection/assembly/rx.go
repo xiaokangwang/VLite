@@ -46,7 +46,7 @@ func (pa *PacketAssembly) Rx() {
 		}
 		if pw.Seq == 0 {
 			pa.RxChan <- payload
-			pa.TxShardOriginalNoFEC += 1
+			pa.RxShardOriginalNoFEC += 1
 		} else {
 			parch := &packetAssemblyRxChunkHolder{}
 			parch.doneAll = false
