@@ -42,6 +42,7 @@ func UDPClient(context context.Context,
 	go ucc.RxFromServerWorker()
 	go ucc.TxToServerWorker()
 	go ucc.pingRoutine()
+	go ucc.boostingReceiver()
 	return ucc
 }
 
@@ -69,8 +70,6 @@ type UDPClientContext struct {
 	isBoosted bool
 
 	isAggressivePingRequested bool
-
-	lastAggressivePingTime time.Time
 }
 
 type UDPClientTxToServerTraffic interfaces.TrafficWithChannelTag
@@ -92,6 +91,8 @@ type UDPClientTrackedAddrContext struct {
 
 func (ucc *UDPClientContext) pingRoutine() {
 	LastReconnect := time.Now()
+	tl := 0.0
+	isAggressivePingInProcess := false
 	for {
 		select {
 		case <-ucc.context.Done():
@@ -102,13 +103,22 @@ func (ucc *UDPClientContext) pingRoutine() {
 				shouldPingBeSend = true
 			}
 			t := timenow.Sub(ucc.LastPongRecv).Seconds()
-			if t > 10 || (ucc.isAggressivePingRequested &&
-				ucc.lastAggressivePingTime.Sub(ucc.LastPongRecv).Seconds() > 1.5) {
+
+			if t > 10 || (isAggressivePingInProcess &&
+				t > 1.5+tl) {
 				fmt.Printf("No pong were received in last %v second\n", t)
 				if time.Now().Sub(LastReconnect).Seconds() > 16 {
 					LastReconnect = time.Now()
 					puniCommon.ReHandshake(ucc.context)
 				}
+				isAggressivePingInProcess = false
+			}
+
+			if ucc.isAggressivePingRequested {
+				isAggressivePingInProcess = true
+				tl = t
+				shouldPingBeSend = true
+				ucc.isAggressivePingRequested = false
 			}
 
 			if t > 180 {

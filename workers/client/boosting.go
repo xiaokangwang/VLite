@@ -61,8 +61,5 @@ func (ucc *UDPClientContext) boostWorker(info chan ibusInterface.ConnBoostMode) 
 }
 
 func (ucc *UDPClientContext) AggressivePingBegin() {
-	fmt.Println("Aggressive Ping")
-	ucc.lastAggressivePingTime = time.Now()
-	ucc.sendPing()
 	ucc.isAggressivePingRequested = true
 }
