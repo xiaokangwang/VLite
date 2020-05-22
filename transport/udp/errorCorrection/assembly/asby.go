@@ -48,6 +48,8 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	go pa.Tx()
 	go pa.Report()
 
+	go pa.boostingReceiver()
+
 	return pa
 }
 
