@@ -28,6 +28,7 @@ func NewFilteredConn(conn net.Conn,
 		RxChannel:     RxChannel,
 		ctx:           ctx,
 	}
+	fc.ctx, fc.ctxCancel = context.WithCancel(fc.ctx)
 	go fc.WriteC()
 	go fc.connectionBoostRequester()
 	return fc
@@ -42,6 +43,8 @@ type FilteredConn struct {
 
 	packetSent uint64
 	packetRecv uint64
+
+	ctxCancel context.CancelFunc
 }
 
 func (fc *FilteredConn) GetPacketStatus() (uint64, uint64) {
@@ -71,9 +74,11 @@ func (fc *FilteredConn) connectionBoostRequester() {
 		select {
 		case <-fc.ctx.Done():
 			ticker.Stop()
+			fmt.Println("FilteredConn Done")
 			return
 		case <-ticker.C:
 			sentn, recvn := fc.GetPacketStatus()
+			fmt.Println("FilteredConn", sentn, recvn)
 
 			lastSecondTraffic := sent + recv
 
@@ -141,6 +146,8 @@ func (fc *FilteredConn) Read(p []byte) (int, error) {
 	for {
 		n, err := fc.conn.Read(buffer[:])
 		if err != nil {
+			fmt.Println("Filter Conn Read: ", err.Error())
+			fc.ctxCancel()
 			return 0, err
 		}
 
@@ -167,6 +174,7 @@ func (fc *FilteredConn) Read(p []byte) (int, error) {
 		case fc.RxChannel <- RxData:
 			break
 		case <-fc.ctx.Done():
+			fmt.Println("Filter Conn Ctx: ", fc.ctx.Err())
 			return 0, fc.ctx.Err()
 		}
 

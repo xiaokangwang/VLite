@@ -7,6 +7,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/antiReplayWindow"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"net"
+	"time"
 )
 
 func (uic *UnifiedConnectionTransportHub) onConnection(conn net.Conn, ctx context.Context) context.Context {
@@ -19,10 +20,22 @@ func (uic *UnifiedConnectionTransportHub) onConnection(conn net.Conn, ctx contex
 	uCT.TxChan = make(chan []byte, 8)
 	uCT.RxChan = make(chan []byte, 8)
 	uCT.ConnID = Attrib.ID
+
+	ShouldRehandshake := false
+
+	fmt.Println(Attrib.Iter)
+
+	if Attrib.Iter < -1 {
+		Attrib.Iter = -Attrib.Iter
+		ShouldRehandshake = true
+	}
+
 	uCT.LastConnIter = Attrib.Iter
 	uCT.Arw = antiReplayWindow.NewAntiReplayWindow(120)
 	uCT.LastCOnnIterCancelFunc = make(map[string]context.CancelFunc)
-	uCT.connctx = ctx
+	uCT.connctx, uCT.connCancel = context.WithCancel(ctx)
+
+	uCT.timeout = time.NewTimer(time.Second * 600)
 
 	act, ctl := uic.Conns.LoadOrStore(string(Attrib.ID), uCT)
 
@@ -30,7 +43,8 @@ func (uic *UnifiedConnectionTransportHub) onConnection(conn net.Conn, ctx contex
 		uCT = act.(*UnifiedConnectionTransport)
 	} else {
 		//ConnID should have been set
-		uic.Uplistener.Connection(adp.NewRxTxToConn(uCT.TxChan, uCT.RxChan, uCT), ctx)
+		uic.Uplistener.Connection(adp.NewRxTxToConn(uCT.TxChan, uCT.RxChan, uCT, ctx), ctx)
+		go uCT.timeoutWatcher()
 	}
 
 	if !uCT.Arw.Check(Attrib.Rand) {
@@ -47,6 +61,11 @@ func (uic *UnifiedConnectionTransportHub) onConnection(conn net.Conn, ctx contex
 		}
 		uCT.LastCOnnIterCancelFunc = make(map[string]context.CancelFunc)
 		fmt.Println("Connection Reincarnation")
+
+		if ShouldRehandshake {
+			uCT.Rehandshake()
+			fmt.Println("Connection Rehandshake")
+		}
 	}
 	thisconnctx, cancel := context.WithCancel(uCT.connctx)
 	uCT.LastCOnnIterCancelFunc[string(Attrib.Rand)] = cancel

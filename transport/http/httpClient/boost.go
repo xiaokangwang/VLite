@@ -24,7 +24,7 @@ func (pc *ProviderClient) BoostingListener() {
 
 	boostModeOptChan := make(chan ibusInterface.ConnBoostMode, 8)
 
-	mbus.RegisterHandler(BusTopic, &bus.Handler{
+	mbus.RegisterHandler(BusTopic+"HttpClient", &bus.Handler{
 		Handle: func(e *bus.Event) {
 			d := e.Data.(ibusInterface.ConnBoostMode)
 			select {

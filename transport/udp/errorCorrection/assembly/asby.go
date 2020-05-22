@@ -102,5 +102,5 @@ type PacketWireHead struct {
 }
 
 func (pa *PacketAssembly) AsConn() net.Conn {
-	return adp.NewRxTxToConn(pa.TxChan, pa.RxChan, pa)
+	return adp.NewRxTxToConn(pa.TxChan, pa.RxChan, pa, pa.ctx)
 }

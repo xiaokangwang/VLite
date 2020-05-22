@@ -12,7 +12,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"reflect"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -106,7 +108,13 @@ func (ucc *UDPClientContext) pingRoutine() {
 		}
 	}
 }
-
+func raise(sig os.Signal) error {
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+	return p.Signal(sig)
+}
 func (ucc *UDPClientContext) sendPing() {
 	var buf bytes.Buffer
 
@@ -124,7 +132,7 @@ func (ucc *UDPClientContext) sendPing() {
 	PingHeader.Seq = ucc.pingSeq
 	PingHeader.Seq2 = uint64(time.Now().UnixNano())
 
-	if ucc.GetTransmitLayerSentRecvStatsInt != nil {
+	if !reflect.ValueOf(ucc.GetTransmitLayerSentRecvStatsInt).IsNil() {
 		sent, recv := ucc.GetTransmitLayerSentRecvStatsInt.GetTransmitLayerSentRecvStats()
 		PingHeader.SentPacket = sent
 		PingHeader.RecvPacket = recv
@@ -175,6 +183,7 @@ func (ucc *UDPClientContext) RxFromServerWorker() {
 				ucc.rxFromServerWorker_Data(traffic.Payload, traffic.Channel)
 			}
 		case <-ucc.context.Done():
+			log.Println("Client Routine Ended As Context ended.")
 			return
 		}
 	}

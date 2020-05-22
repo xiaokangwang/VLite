@@ -398,7 +398,7 @@ func (pc *ProviderClient) DialRxConnection(ctx context.Context) {
 }
 
 func (pc *ProviderClient) AsConn() net.Conn {
-	return adp.NewRxTxToConn(pc.TxChan, pc.RxChan, pc)
+	return adp.NewRxTxToConn(pc.TxChan, pc.RxChan, pc, pc.ctx)
 }
 
 func (pc *ProviderClient) DialRxTestConnection(TestSize int) int {

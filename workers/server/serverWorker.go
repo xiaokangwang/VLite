@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
@@ -37,8 +38,7 @@ func UDPServer(context context.Context,
 	ExtraOptionsUDPTimeoutTime := context.Value(interfaces.ExtraOptionsUDPTimeoutTime)
 
 	if ExtraOptionsUDPTimeoutTime != nil {
-		usc.opts.UDPTimeoutTime = ExtraOptionsUDPTimeoutTime.
-		(*interfaces.ExtraOptionsUDPTimeoutTimeValue).TimeoutTimeInSeconds
+		usc.opts.UDPTimeoutTime = ExtraOptionsUDPTimeoutTime.(*interfaces.ExtraOptionsUDPTimeoutTimeValue).TimeoutTimeInSeconds
 	}
 
 	go usc.RxFromClientWorker()
@@ -131,12 +131,14 @@ func (uscc *UDPServerContext) RxFromClientWorker() {
 			}
 			continue
 		case <-uscc.context.Done():
+			fmt.Println("Server quiting")
 			return
 		}
 	}
 }
 
 func (uscc *UDPServerContext) sendPong(reader io.Reader) {
+	fmt.Println("Pong responding")
 	PingHeader := &proto.PingHeader{}
 
 	err0 := struc.Unpack(reader, PingHeader)
@@ -395,7 +397,7 @@ func (uscc *UDPServerContext) trackConnectionAnnounceIfPossible(source net.UDPAd
 func (uscc *UDPServerContext) isConnectionTracked(source net.UDPAddr, dest net.UDPAddr,
 	TrackIfNotCurrentlyTrackingOrTracked bool) (bool, uint16) {
 	trackerI, ok := uscc.ClientLogicConnection.Load(source.String())
-	if ! ok {
+	if !ok {
 		return false, 0
 	}
 	tracker := trackerI.(*UDPServerClientLogicConnectionContext)
@@ -419,7 +421,7 @@ func (uscc *UDPServerContext) isConnectionTracked(source net.UDPAddr, dest net.U
 		trackerR.Tracking = true
 		trackingNumber := uscc.ChannelNumberGenerator.FindNext()
 		trackerR.Channel = trackingNumber
-		if ! trackerR.TrackPending {
+		if !trackerR.TrackPending {
 			tc := &UDPServerTrackedRemoteAddrContext{}
 			tc.LocalAddr = source
 			tc.RemoteAddr = dest
@@ -491,7 +493,7 @@ func (uscc *UDPServerContext) untrackConnection(channel uint16) bool {
 		dest := interT.RemoteAddr
 
 		trackerI, ok := uscc.ClientLogicConnection.Load(source.String())
-		if ! ok {
+		if !ok {
 			return false
 		}
 		tracker := trackerI.(*UDPServerClientLogicConnectionContext)
@@ -534,7 +536,7 @@ func (uscc *UDPServerContext) rxFromClientWorker_OnControlAssociateDone(reader i
 	dest := net.UDPAddr{Port: int(h.DestPort), IP: proto.IPv4ByteToAddr(h.DestIP)}
 
 	trackerI, ok := uscc.ClientLogicConnection.Load(source.String())
-	if ! ok {
+	if !ok {
 		return
 	}
 	tracker := trackerI.(*UDPServerClientLogicConnectionContext)
@@ -569,7 +571,7 @@ func (uscc *UDPServerContext) rxFromClientWorker_OnData(channel uint16, p []byte
 	dest := interT.RemoteAddr
 
 	trackerI, ok := uscc.ClientLogicConnection.Load(source.String())
-	if ! ok {
+	if !ok {
 		return
 	}
 	tracker := trackerI.(*UDPServerClientLogicConnectionContext)

@@ -111,7 +111,7 @@ func (s *PacketSCTPRelay) tlsopenServer() {
 		SRTPProtectionProfiles: nil,
 		ClientAuth:             0,
 		ExtendedMasterSecret:   dtls.RequireExtendedMasterSecret,
-		FlightInterval:         time.Second * 4,
+		FlightInterval:         time.Second / 4,
 		PSK: func(i2 []byte) (i []byte, err error) {
 			return s.Password, nil
 		},
@@ -146,12 +146,13 @@ func (s *PacketSCTPRelay) tlsopenServer() {
 }
 
 func (s *PacketSCTPRelay) tlsopenClient() {
+	log.Println("Begin DTLS Handshake")
 	dtlsserver, err := dtls.Client(s.conn, &dtls.Config{
 		CipherSuites:           cipherSuiteIDS,
 		SRTPProtectionProfiles: nil,
 		ClientAuth:             0,
 		ExtendedMasterSecret:   dtls.RequireExtendedMasterSecret,
-		FlightInterval:         time.Second * 4,
+		FlightInterval:         time.Second / 4,
 		PSK: func(i2 []byte) (i []byte, err error) {
 			return s.Password, nil
 		},
@@ -174,19 +175,20 @@ func (s *PacketSCTPRelay) tlsopenClient() {
 	}
 
 	s.tlsconn = dtlsserver
-
+	log.Println("Over DTLS Handshake")
+	log.Println("Begin SCTP Handshake")
 	fc := s.getConn(dtlsserver)
 	s.scconn, err = sctp.Client(sctp.Config{
 		NetConn:              fc,
 		MaxReceiveBufferSize: 65536,
 		LoggerFactory:        loggingf,
 	})
-
 	if err != nil {
 		log.Println(err)
 		debug.PrintStack()
 		//TODO Error should be reported
 	}
+	log.Println("Over SCTP Handshake")
 }
 
 func (s *PacketSCTPRelay) Listen() {
@@ -372,6 +374,9 @@ func (s *PacketSCTPRelay) PacketTx() {
 					log.Println(err)
 				}*/
 			var err error
+			for s.scconnctl == nil {
+				time.Sleep(time.Second / 10)
+			}
 			_, err = s.scconnctl.Write(data.Payload)
 			if err != nil {
 				log.Println(err.Error())

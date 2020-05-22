@@ -1,14 +1,15 @@
 package adp
 
 import (
+	"context"
 	"io"
 	"net"
 	"time"
 )
 
 func NewRxTxToConn(TxChan chan []byte,
-	RxChan chan []byte, closer io.Closer) *RxTxToConn {
-	adpr := &RxTxToConn{TxChan: TxChan, RxChan: RxChan, closer: closer}
+	RxChan chan []byte, closer io.Closer, ctx context.Context) *RxTxToConn {
+	adpr := &RxTxToConn{TxChan: TxChan, RxChan: RxChan, closer: closer, ctx: ctx}
 	return adpr
 }
 
@@ -16,6 +17,7 @@ type RxTxToConn struct {
 	TxChan chan []byte
 	RxChan chan []byte
 	closer io.Closer
+	ctx    context.Context
 }
 
 func (r RxTxToConn) Read(b []byte) (n int, err error) {
@@ -26,6 +28,8 @@ func (r RxTxToConn) Read(b []byte) (n int, err error) {
 			return 0, io.ErrShortBuffer
 		}
 		return n, nil
+	case <-r.ctx.Done():
+		return 0, r.ctx.Err()
 	case <-time.NewTimer(time.Second * 400).C:
 		return 0, io.EOF
 	}
@@ -33,6 +37,9 @@ func (r RxTxToConn) Read(b []byte) (n int, err error) {
 }
 
 func (r RxTxToConn) Write(b []byte) (n int, err error) {
+	if r.ctx.Err() != nil {
+		return 0, r.ctx.Err()
+	}
 	r.TxChan <- b
 	return len(b), nil
 }

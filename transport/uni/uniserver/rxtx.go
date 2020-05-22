@@ -3,7 +3,9 @@ package uniserver
 import (
 	"context"
 	"fmt"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniCommon"
 	"net"
+	"time"
 )
 
 func (uct *UnifiedConnectionTransport) Rx(conn net.Conn, ctx context.Context) {
@@ -13,6 +15,8 @@ func (uct *UnifiedConnectionTransport) Rx(conn net.Conn, ctx context.Context) {
 		if err != nil {
 			fmt.Println(err.Error())
 			return
+		} else {
+			uct.timeout.Reset(time.Second * 600)
 		}
 		data := buf[:n]
 		uct.RxChan <- data
@@ -34,9 +38,19 @@ func (uct *UnifiedConnectionTransport) Tx(conn net.Conn, ctx context.Context) {
 				return
 			}
 		case <-ctx.Done():
+			fmt.Println("Uni connTx Ended")
 			return
 		case <-uct.connctx.Done():
 			return
 		}
 	}
+}
+
+func (uct *UnifiedConnectionTransport) Rehandshake() {
+	puniCommon.ReHandshake(uct.connctx)
+}
+
+func (uct *UnifiedConnectionTransport) timeoutWatcher() {
+	<-uct.timeout.C
+	uct.connCancel()
 }

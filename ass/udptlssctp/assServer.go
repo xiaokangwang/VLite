@@ -8,6 +8,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/httpServer"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniServer"
 	"github.com/xiaokangwang/VLite/transport/udp/udpServer"
 	"github.com/xiaokangwang/VLite/transport/uni/uniserver"
 	"github.com/xiaokangwang/VLite/workers/server"
@@ -41,6 +42,8 @@ type UdptlsSctpServer struct {
 	ratelimitServerTCPWriteInitialSize   int
 
 	msgbus *bus.Bus
+
+	useUni bool
 }
 
 func (s UdptlsSctpServer) Connection(conn net.Conn, ctx context.Context) context.Context {
@@ -95,16 +98,26 @@ func (s *UdptlsSctpServer) Process(conn net.Conn, connctx context.Context) {
 
 	}(connctx)
 
-	relay := udpsctpserver.NewPacketRelayServer(conn, S_S2CTraffic2, S_S2CDataTraffic2, S_C2STraffic2, &ts, s.password, connctx)
+	if !s.useUni || !UsePuni {
+		relay := udpsctpserver.NewPacketRelayServer(conn, S_S2CTraffic2, S_S2CDataTraffic2, S_C2STraffic2, &ts, s.password, connctx)
+		_ = relay
+		udpserver := server.UDPServer(connctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
 
-	_ = relay
+		_ = udpserver
 
-	udpserver := server.UDPServer(connctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
+		relay.RateLimitTcpServerWrite(s.ratelimitServerTCPWriteBytePerSecond, s.ratelimitServerTCPWriteMaxBucketSize, s.ratelimitServerTCPWriteInitialSize)
+	} else {
+		relay := puniServer.NewPacketUniServer(S_S2CTraffic2, S_S2CDataTraffic2, S_C2STraffic2, &ts, s.password, connctx)
+		_ = relay
+		relay.OnAutoCarrier(conn, connctx)
+		udpserver := server.UDPServer(connctx, S_S2CTraffic, S_S2CDataTraffic, S_C2STraffic, relay)
 
-	_ = udpserver
+		_ = udpserver
 
-	relay.RateLimitTcpServerWrite(s.ratelimitServerTCPWriteBytePerSecond, s.ratelimitServerTCPWriteMaxBucketSize, s.ratelimitServerTCPWriteInitialSize)
+		relay.RateLimitTcpServerWrite(s.ratelimitServerTCPWriteBytePerSecond, s.ratelimitServerTCPWriteMaxBucketSize, s.ratelimitServerTCPWriteInitialSize)
+	}
 }
+
 func (s *UdptlsSctpServer) Up() {
 	useUniConn := false
 	var unitransport transport.UnderlayTransportListener
@@ -115,6 +128,7 @@ func (s *UdptlsSctpServer) Up() {
 		unitransport = unis
 	}
 
+	s.useUni = useUniConn
 	//Open Connection
 	if strings.HasPrefix(s.Address, "http") {
 		address := s.Address[4:]

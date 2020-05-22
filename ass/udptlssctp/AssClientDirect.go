@@ -13,6 +13,8 @@ import (
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniClient"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniCommon"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
 	"github.com/xiaokangwang/VLite/transport/uni/uniclient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
@@ -75,7 +77,8 @@ type UdptlsSctpClientDirect struct {
 	udprelay  *udpsctpserver.PacketSCTPRelay
 	udpserver *client2.UDPClientContext
 
-	uni *uniclient.UnifiedConnectionClient
+	uni  *uniclient.UnifiedConnectionClient
+	puni *puniClient.PacketUniClient
 
 	password []byte
 
@@ -83,6 +86,8 @@ type UdptlsSctpClientDirect struct {
 	TunnelRxFromTun chan interfaces.UDPPacket
 
 	msgbus *bus.Bus
+
+	connCtx context.Context
 }
 
 func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx context.Context) (net.Conn, error) {
@@ -177,11 +182,23 @@ func (s *UdptlsSctpClientDirect) Up() {
 
 	s.TunnelTxToTun = TunnelTxToTun
 	s.TunnelRxFromTun = TunnelRxFromTun
+	if s.uni != nil && UsePuni {
+		s.puni = puniClient.NewPacketUniClient(C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
+		s.puni.OnAutoCarrier(conn, connctx)
+		s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.puni)
+	} else {
+		s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
+		s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+	}
 
-	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
-	s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+	s.connCtx = connctx
 }
 
 func (s *UdptlsSctpClientDirect) Reconnect() {
-	s.uni.ReconnectUnder(s.ctx)
+	if UsePuni {
+		puniCommon.ReHandshake(s.connCtx)
+	} else {
+		s.uni.ReconnectUnder(s.connCtx)
+	}
+
 }

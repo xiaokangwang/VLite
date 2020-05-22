@@ -6,6 +6,7 @@ import (
 	"github.com/xiaokangwang/VLite/transport/antiReplayWindow"
 	"net"
 	"sync"
+	"time"
 )
 
 func NewUnifiedConnectionTransportHub(Uplistener transport.UnderlayTransportListener, ctx context.Context) *UnifiedConnectionTransportHub {
@@ -30,6 +31,8 @@ type UnifiedConnectionTransport struct {
 	TxChan                 chan []byte
 	RxChan                 chan []byte
 	connctx                context.Context
+	connCancel             context.CancelFunc
+	timeout                *time.Timer
 }
 
 func (u UnifiedConnectionTransport) Close() error {

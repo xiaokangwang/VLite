@@ -138,7 +138,6 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	ppsd.boostConnectionGSRV = &interfaces.ExtraOptionsBoostConnectionGracefulShutdownRequestValue{ShouldClose: make(chan interface{})}
 
 	a, ok := pss.clientSet.LoadOrStore(synthid(beardata), ppsd)
-
 	if ok {
 		ppsd = a.(*ProviderConnServerSide)
 	} else {
@@ -154,7 +153,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 
 		connctx = context.WithValue(connctx, interfaces.ExtraOptionsUniConnAttrib, univ)
 
-		connctx = pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd), connctx)
+		connctx = pss.Uplistener.Connection(adp.NewRxTxToConn(ppsd.TxChan, ppsd.RxChan, ppsd, connctx), connctx)
 
 		//Should use connctx
 

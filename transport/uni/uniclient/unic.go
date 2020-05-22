@@ -4,7 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/mustafaturan/bus"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/connidutil"
+	"github.com/xiaokangwang/VLite/interfaces/ibus/ibusTopic"
+	"github.com/xiaokangwang/VLite/interfaces/ibusInterface"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/adp"
 	"io"
@@ -20,6 +25,8 @@ type UnifiedConnectionClient struct {
 	TxChan     chan []byte
 	IterCancel context.CancelFunc
 	connctx    context.Context
+
+	connAdpCancel context.CancelFunc
 }
 
 func (u *UnifiedConnectionClient) Close() error {
@@ -30,12 +37,20 @@ func (u *UnifiedConnectionClient) Close() error {
 func NewUnifiedConnectionClient(dialer transport.UnderlayTransportDialer, ctx context.Context) *UnifiedConnectionClient {
 	Connid := make([]byte, 24)
 	io.ReadFull(rand.Reader, Connid)
-	return &UnifiedConnectionClient{dialer: dialer, ctx: ctx, ConnID: Connid, TxChan: make(chan []byte, 8), RxChan: make(chan []byte, 8)}
+
+	ucc := &UnifiedConnectionClient{dialer: dialer, ctx: ctx, ConnID: Connid, TxChan: make(chan []byte, 8), RxChan: make(chan []byte, 8)}
+
+	return ucc
 }
 func (u *UnifiedConnectionClient) Connect(ctx context.Context) (net.Conn, error, context.Context) {
-
+	if u.connAdpCancel != nil {
+		u.connAdpCancel()
+	}
+	if u.IterCancel != nil {
+		u.IterCancel()
+	}
 	u.connctx = ctx
-	conn, err, connctx := u.connectUnder(ctx)
+	conn, err, connctx := u.connectUnder2(ctx, true)
 	if err != nil {
 		fmt.Println(err.Error())
 		return nil, err, nil
@@ -46,15 +61,27 @@ func (u *UnifiedConnectionClient) Connect(ctx context.Context) (net.Conn, error,
 	go u.Tx(conn, ctx2)
 	go u.Rx(conn, ctx2)
 
-	return adp.NewRxTxToConn(u.TxChan, u.RxChan, u), nil, connctx
+	var ctxAdp context.Context
+	ctxAdp, u.connAdpCancel = context.WithCancel(connctx)
+
+	if u.Iter == 1 {
+		go u.ReconnectListener(connctx)
+	}
+
+	return adp.NewRxTxToConn(u.TxChan, u.RxChan, u, ctxAdp), nil, connctx
 }
 
-func (u *UnifiedConnectionClient) connectUnder(ctx context.Context) (net.Conn, error, context.Context) {
+func (u *UnifiedConnectionClient) connectUnder2(ctx context.Context, shouldHandshake bool) (net.Conn, error, context.Context) {
 	u.Iter++
+
+	iterv := u.Iter
+	if shouldHandshake {
+		iterv = -iterv
+	}
 	Eouic := &interfaces.ExtraOptionsUniConnAttribValue{
 		ID:   u.ConnID,
 		Rand: nil,
-		Iter: int32(u.Iter),
+		Iter: int32(iterv),
 	}
 	vctx := context.WithValue(ctx, interfaces.ExtraOptionsUniConnAttrib, Eouic)
 	return u.dialer.Connect(vctx)
@@ -62,7 +89,7 @@ func (u *UnifiedConnectionClient) connectUnder(ctx context.Context) (net.Conn, e
 
 func (u *UnifiedConnectionClient) ReconnectUnder(ctx context.Context) error {
 	u.IterCancel()
-	conn, err, connctx := u.connectUnder(ctx)
+	conn, err, connctx := u.connectUnder2(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -72,6 +99,56 @@ func (u *UnifiedConnectionClient) ReconnectUnder(ctx context.Context) error {
 	go u.Tx(conn, ctx2)
 	go u.Rx(conn, ctx2)
 	return nil
+}
+
+func (u *UnifiedConnectionClient) ReconnectUnderR(ctx context.Context) error {
+	u.IterCancel()
+	conn, err, connctx := u.connectUnder2(ctx, true)
+	if err != nil {
+		return err
+	}
+	ctx2, canc := context.WithCancel(connctx)
+	u.IterCancel = canc
+
+	go u.Tx(conn, ctx2)
+	go u.Rx(conn, ctx2)
+	return nil
+}
+
+func (u *UnifiedConnectionClient) ReconnectListener(connctx context.Context) {
+	ConnIDString := connidutil.ConnIDToString(connctx)
+	BusTopic := ibusTopic.ConnReHandShake(ConnIDString)
+
+	mbus := ibus.ConnectionMessageBusFromContext(connctx)
+
+	mbus.RegisterTopics(BusTopic)
+
+	handshakeModeOptChan := make(chan ibusInterface.ConnReHandshake, 8)
+
+	mbus.RegisterHandler(BusTopic+"UniClient", &bus.Handler{
+		Handle: func(e *bus.Event) {
+			d := e.Data.(ibusInterface.ConnReHandshake)
+			select {
+			case handshakeModeOptChan <- d:
+			default:
+				fmt.Println("WARNING: boost mode hint discarded")
+			}
+
+		},
+		Matcher: BusTopic,
+	})
+
+	for {
+		select {
+		case <-connctx.Done():
+			fmt.Println("UniClient Done")
+			return
+		case <-handshakeModeOptChan:
+			go u.ReconnectUnderR(connctx)
+			fmt.Println("UniClient Rehandshake")
+		}
+	}
+
 }
 
 func (uct *UnifiedConnectionClient) Rx(conn net.Conn, ctx context.Context) {
