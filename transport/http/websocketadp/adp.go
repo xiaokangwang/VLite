@@ -17,7 +17,7 @@ type WsAdp struct {
 func (ws *WsAdp) Read(b []byte) (n int, err error) {
 	_, msg, errw := ws.ReadMessage()
 	if errw != nil {
-		return 0, err
+		return 0, errw
 	}
 	copy(b, msg)
 	return len(msg), nil
