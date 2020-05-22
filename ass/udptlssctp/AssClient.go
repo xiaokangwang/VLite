@@ -15,7 +15,10 @@ import (
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniClient"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
+	"github.com/xiaokangwang/VLite/transport/udp/udpuni/udpunic"
+	"github.com/xiaokangwang/VLite/transport/uni/uniclient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpClient"
 	"golang.org/x/net/proxy"
@@ -37,6 +40,14 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 
 	utsc.ctx = ctxwbus
 
+	useUniConn := false
+
+	if strings.HasPrefix(remoteAddress, "uni+") {
+		useUniConn = true
+		remoteAddress = remoteAddress[4:]
+
+	}
+
 	useWs := false
 
 	if strings.HasPrefix(remoteAddress, "ws+") {
@@ -49,12 +60,20 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP, useWs)
 		}
 		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
-	} else if strings.HasPrefix(remoteAddress, "fec+") {
-		remoteAddress = remoteAddress[4:]
-		utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
-		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, utsc.ctx)
 	} else {
+		if strings.HasPrefix(remoteAddress, "fec+") {
+			remoteAddress = remoteAddress[4:]
+			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
+		}
 		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, utsc.ctx)
+		if useUniConn {
+			utsc.udpdialer = udpunic.NewUdpUniClient(string(utsc.password), utsc.ctx, utsc.udpdialer)
+		}
+	}
+	if useUniConn {
+		unis := uniclient.NewUnifiedConnectionClient(utsc.udpdialer, utsc.ctx)
+		utsc.udpdialer = unis
+		utsc.uni = unis
 	}
 	return utsc
 }
@@ -70,6 +89,9 @@ type UdptlsSctpClient struct {
 
 	password []byte
 	msgbus   *bus.Bus
+
+	uni  *uniclient.UnifiedConnectionClient
+	puni *puniClient.PacketUniClient
 }
 type UdptlsSctpClientStramToNetConnAdp struct {
 	rwc io.ReadWriteCloser
@@ -137,7 +159,12 @@ func (s *UdptlsSctpClient) Dial(network, address string, port uint16, ctx contex
 }
 
 func (s *UdptlsSctpClient) DialDirect(address string, port uint16) (net.Conn, error) {
-	Stream := s.udprelay.ClientOpenStream()
+	var Stream io.ReadWriteCloser
+	if s.uni != nil {
+		Stream = s.puni.ClientOpenStream()
+	} else {
+		Stream = s.udprelay.ClientOpenStream()
+	}
 	var w = &bytes.Buffer{}
 	tcpClient.WriteTcpDialHeader(w, address, port)
 
@@ -241,8 +268,14 @@ func (s *UdptlsSctpClient) Up() {
 
 	s.st = stack2
 
-	s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
-	s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+	if s.uni != nil && UsePuni {
+		s.puni = puniClient.NewPacketUniClient(C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
+		s.puni.OnAutoCarrier(conn, connctx)
+		s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.puni)
+	} else {
+		s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
+		s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
+	}
 }
 
 type TCPSocketDialer interface {
