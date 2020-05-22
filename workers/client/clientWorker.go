@@ -7,6 +7,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
+	"github.com/xiaokangwang/VLite/transport/packetuni/puniCommon"
 	"github.com/xiaokangwang/VLite/transport/transportQuality"
 	"io"
 	"log"
@@ -64,6 +65,12 @@ type UDPClientContext struct {
 	pingSeq uint64
 
 	QualityInt interfaces.QualityEstimator
+
+	isBoosted bool
+
+	isAggressivePingRequested bool
+
+	lastAggressivePingTime time.Time
 }
 
 type UDPClientTxToServerTraffic interfaces.TrafficWithChannelTag
@@ -84,6 +91,7 @@ type UDPClientTrackedAddrContext struct {
 }
 
 func (ucc *UDPClientContext) pingRoutine() {
+	LastReconnect := time.Now()
 	for {
 		select {
 		case <-ucc.context.Done():
@@ -94,8 +102,13 @@ func (ucc *UDPClientContext) pingRoutine() {
 				shouldPingBeSend = true
 			}
 			t := timenow.Sub(ucc.LastPongRecv).Seconds()
-			if t > 10 {
+			if t > 10 || (ucc.isAggressivePingRequested &&
+				ucc.lastAggressivePingTime.Sub(ucc.LastPongRecv).Seconds() > 1.5) {
 				fmt.Printf("No pong were received in last %v second\n", t)
+				if time.Now().Sub(LastReconnect).Seconds() > 16 {
+					LastReconnect = time.Now()
+					puniCommon.ReHandshake(ucc.context)
+				}
 			}
 
 			if t > 180 {
@@ -152,9 +165,15 @@ func (ucc *UDPClientContext) sendPing() {
 func (ucc *UDPClientContext) RxFromServerWorker() {
 	var err error
 	_ = err
+
+	BoostedPingTimer := time.NewTimer(time.Microsecond)
+	//Discard First Timer signal
+	<-BoostedPingTimer.C
+
 	for {
 		select {
 		case traffic := <-ucc.RxFromServer:
+			BoostedPingTimer.Reset(time.Second)
 			if traffic.Channel == 0 {
 				//Decode this as a control packet
 				payloadData := bytes.NewReader(traffic.Payload)
@@ -185,10 +204,14 @@ func (ucc *UDPClientContext) RxFromServerWorker() {
 		case <-ucc.context.Done():
 			log.Println("Client Routine Ended As Context ended.")
 			return
+		case <-BoostedPingTimer.C:
+			if !ucc.isBoosted {
+				continue
+			}
+			ucc.AggressivePingBegin()
 		}
 	}
 }
-
 func (ucc *UDPClientContext) rxFromServerWorker_OnControlPong(reader io.Reader) {
 	pongHeader := &proto.PongHeader{}
 
