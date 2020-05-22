@@ -65,6 +65,9 @@ func (u *udpServer) Listener() {
 			connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 			connctx = u.under.Connection(usageConn, connctx)
 			//Should use connctx
+			if connctx == nil {
+				u.remoteConnTracker.Delete(a.String())
+			}
 		}
 
 		conn.readchan <- bm[:c]

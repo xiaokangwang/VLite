@@ -67,3 +67,9 @@ type ExtraOptionsUniConnAttribValue struct {
 }
 
 const ExtraOptionsUseWebSocketInsteadOfHTTP = "ExtraOptionsUseWebSocketInsteadOfHTTP"
+
+const ExtraOptionsUDPInitialData = "ExtraOptionsUDPInitialData"
+
+type ExtraOptionsUDPInitialDataValue struct {
+	Data []byte
+}

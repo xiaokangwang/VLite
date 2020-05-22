@@ -14,18 +14,25 @@ import (
 )
 
 func NewHttpHeaderHolderProcessor(password string) *HttpHeaderHolderProcessor {
-	hp := &HttpHeaderHolderProcessor{password: password}
+	hp := &HttpHeaderHolderProcessor{password: password, salt: "HTTPHeaderSecret"}
+	hp.prepare()
+	return hp
+}
+
+func NewHttpHeaderHolderProcessor2(password string, salt string) *HttpHeaderHolderProcessor {
+	hp := &HttpHeaderHolderProcessor{password: password, salt: salt}
 	hp.prepare()
 	return hp
 }
 
 type HttpHeaderHolderProcessor struct {
 	password string
+	salt     string
 }
 
 func (pc *HttpHeaderHolderProcessor) prepare() cipher.AEAD {
 
-	hasher := sha3.NewCShake128(nil, []byte("HTTPHeaderSecret"))
+	hasher := sha3.NewCShake128(nil, []byte(pc.salt))
 	hasher.Write([]byte(pc.password))
 
 	keyin := make([]byte, 64)
