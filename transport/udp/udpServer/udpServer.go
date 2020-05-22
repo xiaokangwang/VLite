@@ -63,6 +63,7 @@ func (u *udpServer) Listener() {
 			connid := []byte(conn.remoteAddr.String())
 			connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, connid)
 			connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+			connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: bm[:c]})
 			connctx = u.under.Connection(usageConn, connctx)
 			//Should use connctx
 			if connctx == nil {

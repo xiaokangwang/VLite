@@ -16,9 +16,11 @@ import (
 	"github.com/xiaokangwang/VLite/transport/packetuni/puniClient"
 	"github.com/xiaokangwang/VLite/transport/packetuni/puniCommon"
 	"github.com/xiaokangwang/VLite/transport/udp/udpClient"
+	"github.com/xiaokangwang/VLite/transport/udp/udpuni/udpunic"
 	"github.com/xiaokangwang/VLite/transport/uni/uniclient"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpClient"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -50,21 +52,24 @@ func NewUdptlsSctpClientDirect(remoteAddress string, password string, ctx contex
 	}
 
 	if strings.HasPrefix(remoteAddress, "http") {
-		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
-		if useUniConn {
-			if useWs {
-				utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP, useWs)
-			}
-			unis := uniclient.NewUnifiedConnectionClient(utsc.udpdialer, utsc.ctx)
-			utsc.udpdialer = unis
-			utsc.uni = unis
+		if useWs {
+			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUseWebSocketInsteadOfHTTP, useWs)
 		}
-	} else if strings.HasPrefix(remoteAddress, "fec+") {
-		remoteAddress = remoteAddress[4:]
-		utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
-		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, utsc.ctx)
+		utsc.udpdialer = httpClient.NewProviderClientCreator(remoteAddress, 2, 2, password, utsc.ctx)
 	} else {
+		if strings.HasPrefix(remoteAddress, "fec+") {
+			remoteAddress = remoteAddress[4:]
+			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
+		}
 		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, utsc.ctx)
+		if useUniConn {
+			utsc.udpdialer = udpunic.NewUdpUniClient(string(utsc.password), utsc.ctx, utsc.udpdialer)
+		}
+	}
+	if useUniConn {
+		unis := uniclient.NewUnifiedConnectionClient(utsc.udpdialer, utsc.ctx)
+		utsc.udpdialer = unis
+		utsc.uni = unis
 	}
 	return utsc
 }
@@ -94,7 +99,13 @@ func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx 
 	return s.DialDirect(address, port)
 }
 func (s *UdptlsSctpClientDirect) DialDirect(address string, port uint16) (net.Conn, error) {
-	Stream := s.udprelay.ClientOpenStream()
+	var Stream io.ReadWriteCloser
+	if s.uni != nil {
+		s.udprelay = s.puni.ClientOpenStream()
+	} else {
+		Stream = s.udprelay.ClientOpenStream()
+	}
+
 	var w = &bytes.Buffer{}
 	tcpClient.WriteTcpDialHeader(w, address, port)
 

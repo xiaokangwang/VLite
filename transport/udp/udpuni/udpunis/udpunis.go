@@ -10,6 +10,16 @@ import (
 	"time"
 )
 
+func NewUdpUniServer(password string,
+	ctx context.Context, upper transport.UnderlayTransportListener) *UdpUniServer {
+	return &UdpUniServer{
+		password: password,
+		ctx:      ctx,
+		hh:       headerHolder.NewHttpHeaderHolderProcessor2(password, "UdpUniSecret"),
+		upper:    upper,
+	}
+}
+
 type UdpUniServer struct {
 	password string
 	ctx      context.Context

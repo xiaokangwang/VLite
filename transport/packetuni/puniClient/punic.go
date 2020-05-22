@@ -11,7 +11,9 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces/ibusInterface"
 	"github.com/xiaokangwang/VLite/transport/contextAwareConn"
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
+	"io"
 	"net"
+	"time"
 )
 
 func NewPacketUniClient(TxChannel chan interfaces.TrafficWithChannelTag,
@@ -134,4 +136,14 @@ func (pu *PacketUniClient) onAutoCarrier(connctx context.Context, conn net.Conn)
 			fmt.Println("PacketUniClient Rehandshake")
 		}
 	}
+}
+
+func (pu *PacketUniClient) ClientOpenStream() io.ReadWriteCloser {
+	for i := 0; i <= 6000; i++ {
+		if pu.relay == nil {
+			time.Sleep(time.Second / 10)
+		}
+	}
+	return pu.relay.ClientOpenStream()
+
 }

@@ -10,6 +10,7 @@ import (
 	udpsctpserver "github.com/xiaokangwang/VLite/transport/packetsctp/sctprelay"
 	"github.com/xiaokangwang/VLite/transport/packetuni/puniServer"
 	"github.com/xiaokangwang/VLite/transport/udp/udpServer"
+	"github.com/xiaokangwang/VLite/transport/udp/udpuni/udpunis"
 	"github.com/xiaokangwang/VLite/transport/uni/uniserver"
 	"github.com/xiaokangwang/VLite/workers/server"
 	"github.com/xiaokangwang/VLite/workers/tcp/tcpServer"
@@ -139,14 +140,19 @@ func (s *UdptlsSctpServer) Up() {
 			var v = httpServer.NewProviderServerSide(address, string(s.password), s, s.ctx)
 			s.udplistener = v
 		}
-	} else if strings.HasPrefix(s.Address, "fec+") {
-		s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
-		address := s.Address[4:]
-		var v = udpServer.NewUDPServer(address, s.ctx, s)
-		s.udplistener = v
 	} else {
-		var v = udpServer.NewUDPServer(s.Address, s.ctx, s)
-		s.udplistener = v
+		if strings.HasPrefix(s.Address, "fec+") {
+			s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
+			s.Address = s.Address[4:]
+
+		}
+		if useUniConn {
+			var v = udpServer.NewUDPServer(s.Address, s.ctx, udpunis.NewUdpUniServer(string(s.password), s.ctx, unitransport))
+			s.udplistener = v
+		} else {
+			var v = udpServer.NewUDPServer(s.Address, s.ctx, s)
+			s.udplistener = v
+		}
 	}
 
 }

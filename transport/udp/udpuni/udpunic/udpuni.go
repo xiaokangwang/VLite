@@ -91,6 +91,7 @@ func (uucp *udpUniClientProxy) UniHandShake(token string) error {
 			if !reflect.DeepEqual(buf[:n], []byte(token)) {
 				uucp.initBuf = buf[:n]
 			}
+			uucp.conn.SetReadDeadline(time.Time{})
 			return nil
 		}
 	}
