@@ -105,7 +105,7 @@ func (ucc *UDPClientContext) pingRoutine() {
 			t := timenow.Sub(ucc.LastPongRecv).Seconds()
 
 			if t > 10 || (isAggressivePingInProcess &&
-				t > 1.5+tl) {
+				t > 1.6+tl) {
 				fmt.Printf("No pong were received in last %v second\n", t)
 				if time.Now().Sub(LastReconnect).Seconds() > 16 {
 					LastReconnect = time.Now()
@@ -113,7 +113,9 @@ func (ucc *UDPClientContext) pingRoutine() {
 				}
 				isAggressivePingInProcess = false
 			}
-
+			if isAggressivePingInProcess {
+				shouldPingBeSend = true
+			}
 			if ucc.isAggressivePingRequested {
 				isAggressivePingInProcess = true
 				tl = t
