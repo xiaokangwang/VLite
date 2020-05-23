@@ -113,6 +113,10 @@ func (ucc *UDPClientContext) pingRoutine() {
 				}
 				isAggressivePingInProcess = false
 			}
+			if isAggressivePingInProcess &&
+				t <= 1.6+tl {
+				isAggressivePingInProcess = false
+			}
 			if isAggressivePingInProcess {
 				shouldPingBeSend = true
 			}
