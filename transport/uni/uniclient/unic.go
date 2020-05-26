@@ -58,6 +58,12 @@ func (u *UnifiedConnectionClient) Connect(ctx context.Context) (net.Conn, error,
 	ctx2, canc := context.WithCancel(connctx)
 	u.IterCancel = canc
 
+	go func() {
+		<-ctx2.Done()
+		fmt.Println("closing conn", conn.Close())
+
+	}()
+
 	go u.Tx(conn, ctx2)
 	go u.Rx(conn, ctx2)
 
@@ -84,7 +90,8 @@ func (u *UnifiedConnectionClient) connectUnder2(ctx context.Context, shouldHands
 		Iter: int32(iterv),
 	}
 	vctx := context.WithValue(ctx, interfaces.ExtraOptionsUniConnAttrib, Eouic)
-	return u.dialer.Connect(vctx)
+	conn, err, ctx2 := u.dialer.Connect(vctx)
+	return conn, err, ctx2
 }
 
 func (u *UnifiedConnectionClient) ReconnectUnder(ctx context.Context) error {
@@ -95,6 +102,12 @@ func (u *UnifiedConnectionClient) ReconnectUnder(ctx context.Context) error {
 	}
 	ctx2, canc := context.WithCancel(connctx)
 	u.IterCancel = canc
+
+	go func() {
+		<-ctx2.Done()
+		fmt.Println("closing conn", conn.Close())
+
+	}()
 
 	go u.Tx(conn, ctx2)
 	go u.Rx(conn, ctx2)
@@ -109,6 +122,12 @@ func (u *UnifiedConnectionClient) ReconnectUnderR(ctx context.Context) error {
 	}
 	ctx2, canc := context.WithCancel(connctx)
 	u.IterCancel = canc
+
+	go func() {
+		<-ctx2.Done()
+		fmt.Println("closing conn", conn.Close())
+
+	}()
 
 	go u.Tx(conn, ctx2)
 	go u.Rx(conn, ctx2)
@@ -143,8 +162,13 @@ func (u *UnifiedConnectionClient) ReconnectListener(connctx context.Context) {
 		case <-connctx.Done():
 			fmt.Println("UniClient Done")
 			return
-		case <-handshakeModeOptChan:
-			go u.ReconnectUnderR(connctx)
+		case opt := <-handshakeModeOptChan:
+			if opt.FullReHandshake {
+				go u.ReconnectUnderR(connctx)
+			} else {
+				go u.ReconnectUnder(connctx)
+			}
+
 			fmt.Println("UniClient Rehandshake")
 		}
 	}
@@ -157,6 +181,7 @@ func (uct *UnifiedConnectionClient) Rx(conn net.Conn, ctx context.Context) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			fmt.Println(err.Error())
+			fmt.Println("closing conn", conn.Close())
 			return
 		}
 		data := buf[:n]
@@ -176,6 +201,7 @@ func (uct *UnifiedConnectionClient) Tx(conn net.Conn, ctx context.Context) {
 			_, err := conn.Write(data)
 			if err != nil {
 				fmt.Println(err.Error())
+				fmt.Println("closing conn", conn.Close())
 				return
 			}
 		case <-ctx.Done():

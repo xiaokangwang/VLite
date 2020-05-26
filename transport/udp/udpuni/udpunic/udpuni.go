@@ -78,6 +78,7 @@ func (uuc *UdpUniClient) Connect(ctx context.Context) (net.Conn, error, context.
 func (uucp *udpUniClientProxy) UniHandShake(token string) error {
 	var err error
 	var n int
+	uucp.initBuf2 = []byte(token)
 	for i := 0; i < 300; i++ {
 		uucp.conn.SetReadDeadline(time.Now().Add(time.Second / 4))
 		_, err = uucp.conn.Write([]byte(token))
@@ -99,9 +100,10 @@ func (uucp *udpUniClientProxy) UniHandShake(token string) error {
 }
 
 type udpUniClientProxy struct {
-	ctx     context.Context
-	initBuf []byte
-	conn    net.Conn
+	ctx      context.Context
+	initBuf  []byte
+	initBuf2 []byte
+	conn     net.Conn
 }
 
 func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
@@ -110,7 +112,13 @@ func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 		uucp.initBuf = nil
 		return n, err
 	}
-	return uucp.conn.Read(b)
+	for {
+		n, err = uucp.conn.Read(b)
+		if reflect.DeepEqual(b[:n], uucp.initBuf2) {
+			continue
+		}
+		return
+	}
 }
 
 func (uucp *udpUniClientProxy) Write(b []byte) (n int, err error) {

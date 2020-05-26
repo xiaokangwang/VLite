@@ -107,9 +107,10 @@ func (ucc *UDPClientContext) pingRoutine() {
 			if t > 10 || (isAggressivePingInProcess &&
 				t > 1.6+tl) {
 				fmt.Printf("No pong were received in last %v second\n", t)
-				if time.Now().Sub(LastReconnect).Seconds() > 16 {
+				if time.Now().Sub(LastReconnect).Seconds() > 6 {
+					puniCommon.ReHandshake2(ucc.context, time.Now().Sub(LastReconnect).Seconds() < 10)
 					LastReconnect = time.Now()
-					puniCommon.ReHandshake(ucc.context)
+
 				}
 				isAggressivePingInProcess = false
 			}
@@ -175,7 +176,12 @@ func (ucc *UDPClientContext) sendPing() {
 
 	ucc.QualityInt.OnSendPing(*PingHeader)
 
-	ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: buf.Bytes()}
+	select {
+	case ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: buf.Bytes()}:
+	default:
+		fmt.Println("Ping discarded")
+	}
+
 }
 
 func (ucc *UDPClientContext) RxFromServerWorker() {
@@ -320,6 +326,7 @@ func (ucc *UDPClientContext) rxFromServerWorker_OnControlChannelDestroy(reader i
 func (ucc *UDPClientContext) rxFromServerWorker_Data(p []byte, channel uint16) {
 	ChannelI, ok := ucc.TrackedChannel.Load(channel)
 	if !ok {
+		fmt.Println("Unknown traffic id", channel)
 		return
 	}
 

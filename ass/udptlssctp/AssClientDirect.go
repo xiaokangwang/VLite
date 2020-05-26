@@ -100,7 +100,7 @@ func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx 
 }
 func (s *UdptlsSctpClientDirect) DialDirect(address string, port uint16) (net.Conn, error) {
 	var Stream io.ReadWriteCloser
-	if s.uni != nil {
+	if s.uni != nil && UsePuni {
 		Stream = s.puni.ClientOpenStream()
 	} else {
 		Stream = s.udprelay.ClientOpenStream()
@@ -207,7 +207,7 @@ func (s *UdptlsSctpClientDirect) Up() {
 
 func (s *UdptlsSctpClientDirect) Reconnect() {
 	if UsePuni {
-		puniCommon.ReHandshake(s.connCtx)
+		puniCommon.ReHandshake2(s.connCtx, true)
 	} else {
 		s.uni.ReconnectUnder(s.connCtx)
 	}

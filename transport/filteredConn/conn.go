@@ -78,7 +78,7 @@ func (fc *FilteredConn) connectionBoostRequester() {
 			return
 		case <-ticker.C:
 			sentn, recvn := fc.GetPacketStatus()
-			fmt.Println("FilteredConn", sentn, recvn)
+			//fmt.Println("FilteredConn", sentn, recvn)
 
 			lastSecondTraffic := sent + recv
 

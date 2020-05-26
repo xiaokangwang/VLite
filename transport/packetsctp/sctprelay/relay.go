@@ -221,6 +221,9 @@ func (s *PacketSCTPRelay) Listen() {
 
 func (s *PacketSCTPRelay) ClientOpen() {
 	var err error
+	if s.scconn == nil {
+		return
+	}
 	s.scconnctl, err = s.scconn.OpenStream(0, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
 		log.Println(err.Error())

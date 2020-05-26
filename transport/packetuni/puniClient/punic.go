@@ -131,8 +131,10 @@ func (pu *PacketUniClient) onAutoCarrier(connctx context.Context, conn net.Conn)
 		case <-connctx.Done():
 			fmt.Println("PacketUniClient Done")
 			return
-		case <-handshakeModeOptChan:
-			go pu.OnCarrier(conn, connctx)
+		case opt := <-handshakeModeOptChan:
+			if opt.FullReHandshake == true {
+				go pu.OnCarrier(conn, connctx)
+			}
 			fmt.Println("PacketUniClient Rehandshake")
 		}
 	}

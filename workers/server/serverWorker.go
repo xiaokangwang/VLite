@@ -138,7 +138,7 @@ func (uscc *UDPServerContext) RxFromClientWorker() {
 }
 
 func (uscc *UDPServerContext) sendPong(reader io.Reader) {
-	fmt.Println("Pong responding")
+	//fmt.Println("Pong responding")
 	PingHeader := &proto.PingHeader{}
 
 	err0 := struc.Unpack(reader, PingHeader)
@@ -279,7 +279,7 @@ func (uscc *UDPServerContext) rxFromRemoteListener(tracker *UDPServerClientLogic
 				//See if we have not wait long enough to stop looking for packet
 				if tracker.LastSeen.Add(time.Second*time.Duration(uscc.opts.UDPTimeoutTime)).Sub(time.Now()) < 0 {
 					//It have been a while, close this listener
-					//log.Println("Listener Closed for inactivity")
+					log.Println("Listener Closed for inactivity")
 					shutDown()
 					return
 				}

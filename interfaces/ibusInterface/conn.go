@@ -6,5 +6,6 @@ type ConnBoostMode struct {
 }
 
 type ConnReHandshake struct {
-	Fire bool
+	Fire            bool
+	FullReHandshake bool
 }

@@ -47,7 +47,7 @@ func (uct *UnifiedConnectionTransport) Tx(conn net.Conn, ctx context.Context) {
 }
 
 func (uct *UnifiedConnectionTransport) Rehandshake() {
-	puniCommon.ReHandshake(uct.connctx)
+	puniCommon.ReHandshake2(uct.connctx, true)
 }
 
 func (uct *UnifiedConnectionTransport) timeoutWatcher() {
