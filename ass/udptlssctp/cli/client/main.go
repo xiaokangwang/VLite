@@ -57,7 +57,7 @@ func main() {
 	}
 
 	if HTTPDialAddr != "" {
-		ox := interfaces.ExtraOptionsHTTPDialAddrValue{}
+		ox := &interfaces.ExtraOptionsHTTPDialAddrValue{}
 		ox.Addr = HTTPDialAddr
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPDialAddr, ox)
 	}
