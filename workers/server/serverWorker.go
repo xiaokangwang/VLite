@@ -84,6 +84,8 @@ type UDPServerClientLogicConnectionContext struct {
 
 	//Sending the first data packet and receiving data will refresh this
 	LastSeen time.Time
+
+	NoWait bool
 }
 
 type UDPTrackedConnectionContext struct {
@@ -222,7 +224,9 @@ func (uscc *UDPServerContext) rxFromClientWorker_OnControlSend(reader io.Reader)
 			return
 		}
 		Tracker.Conn = conn
-
+		if destaddr.Port == 53 {
+			Tracker.NoWait = true
+		}
 		go uscc.rxFromRemoteListener(Tracker)
 	}
 
@@ -260,9 +264,15 @@ func (uscc *UDPServerContext) rxFromRemoteListener(tracker *UDPServerClientLogic
 
 	tracker.LastSeen = time.Now()
 
+	initialTrackTime := 600
+	overallTrackTime := uscc.opts.UDPTimeoutTime
+	if tracker.NoWait {
+		initialTrackTime = 5
+		overallTrackTime = 30
+	}
 	for {
 
-		err = UDPConn.SetReadDeadline(time.Now().Add(time.Second * 600))
+		err = UDPConn.SetReadDeadline(time.Now().Add(time.Second * time.Duration(initialTrackTime)))
 
 		if err != nil {
 			log.Println(err)
@@ -277,7 +287,7 @@ func (uscc *UDPServerContext) rxFromRemoteListener(tracker *UDPServerClientLogic
 				//Try again is fine
 
 				//See if we have not wait long enough to stop looking for packet
-				if tracker.LastSeen.Add(time.Second*time.Duration(uscc.opts.UDPTimeoutTime)).Sub(time.Now()) < 0 {
+				if tracker.LastSeen.Add(time.Second*time.Duration(overallTrackTime)).Sub(time.Now()) < 0 {
 					//It have been a while, close this listener
 					log.Println("Listener Closed for inactivity")
 					shutDown()
