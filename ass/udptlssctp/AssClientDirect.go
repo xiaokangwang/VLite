@@ -93,6 +93,8 @@ type UdptlsSctpClientDirect struct {
 	msgbus *bus.Bus
 
 	connCtx context.Context
+
+	httpac *httpClient.ProviderClient
 }
 
 func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx context.Context) (net.Conn, error) {
@@ -100,7 +102,9 @@ func (s *UdptlsSctpClientDirect) Dial(network, address string, port uint16, ctx 
 }
 func (s *UdptlsSctpClientDirect) DialDirect(address string, port uint16) (net.Conn, error) {
 	var Stream io.ReadWriteCloser
-	if s.uni != nil && UsePuni {
+	if s.httpac != nil {
+		Stream = s.httpac.DialWsAlternativeChannelConnection(s.ctx)
+	} else if s.uni != nil && UsePuni {
 		Stream = s.puni.ClientOpenStream()
 	} else {
 		Stream = s.udprelay.ClientOpenStream()
@@ -212,4 +216,8 @@ func (s *UdptlsSctpClientDirect) Reconnect() {
 		s.uni.ReconnectUnder(s.connCtx)
 	}
 
+}
+
+func (s *UdptlsSctpClientDirect) AlternativeChannel(url string) {
+	s.httpac = httpClient.NewProviderClientCreator(url, 0, 0, string(s.password), s.ctx).ConnectL(s.ctx)
 }

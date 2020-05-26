@@ -53,6 +53,16 @@ func (p ProviderClientCreator) Connect(ctx context.Context) (net.Conn, error, co
 	return pc.AsConn(), nil, pc.connctx
 }
 
+func (p ProviderClientCreator) ConnectL(ctx context.Context) *ProviderClient {
+
+	pc := NewProviderClient(p.HttpRequestEndpoint,
+		p.MaxTxConnection,
+		p.MaxRxConnection,
+		p.password, ctx)
+
+	return pc
+}
+
 func NewProviderClient(HttpRequestEndpoint string,
 	MaxTxConnection int,
 	MaxRxConnection int,
@@ -100,6 +110,12 @@ func NewProviderClient(HttpRequestEndpoint string,
 	vctx = context.WithValue(vctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	prc.connctx, prc.closeCtx = context.WithCancel(vctx)
+
+	if MaxTxConnection == 0 {
+		//Don't start connections if only alternative channel is ued
+		return prc
+	}
+
 	if prc.useWebsocket {
 		go prc.StartConnectionsWS()
 	} else {
@@ -272,6 +288,19 @@ func (pc *ProviderClient) createBearToken(masking int64, ctx context.Context) st
 	if pc.useWebsocket {
 		ph.Flags |= proto.HttpHeaderFlag_WebsocketConnection
 		fmt.Println("WS Mark Set")
+	}
+
+	AltChann := false
+
+	alc := ctx.Value(interfaces.ExtraOptionsHTTPClientDialAlternativeChannel)
+	if alc != nil {
+		AltChann = alc.(bool)
+	}
+
+	if AltChann {
+		ph.Flags |= proto.HttpHeaderFlag_AlternativeChannelConnection
+		ph.Flags |= proto.HttpHeaderFlag_WebsocketConnection
+		fmt.Println("Altc WS Mark Set")
 	}
 
 	unival := ctx.Value(interfaces.ExtraOptionsUniConnAttrib)

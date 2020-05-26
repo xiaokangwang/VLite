@@ -133,6 +133,7 @@ func (s *UdptlsSctpServer) Up() {
 	//Open Connection
 	if strings.HasPrefix(s.Address, "http") {
 		address := s.Address[4:]
+		s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsHTTPServerStreamRelay, &interfaces.ExtraOptionsHTTPServerStreamRelayValue{Relay: &tcpServer.TCPServer{}})
 		if useUniConn {
 			var v = httpServer.NewProviderServerSide(address, string(s.password), unitransport, s.ctx)
 			s.udplistener = v

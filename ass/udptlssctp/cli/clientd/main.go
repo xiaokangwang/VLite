@@ -26,6 +26,8 @@ func main() {
 
 	var HTTPDialAddr string
 
+	var TCPAlternativeChannelAddr string
+
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "127.0.0.1:1988", "")
@@ -34,6 +36,7 @@ func main() {
 	flag.BoolVar(&UseSystemSocksProxy, "UseSystemSocksProxy", false, "Respect System Socks Proxy Environment Var ALL_PROXY(apply to HTTP transport only)")
 	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
 	flag.StringVar(&HTTPDialAddr, "HTTPDialAddr", "", "If set, HTTP Connections will dial this address instead of requesting DNS(apply to HTTP transport only)")
+	flag.StringVar(&TCPAlternativeChannelAddr, "TCPAlternativeChannelAddr", "", "If set, TCP connection will dial this address over ws(_WITHOUT_ PROTECTION) instead of over Datagram connection")
 
 	flag.Parse()
 
@@ -64,6 +67,10 @@ func main() {
 
 	uc := udptlssctp.NewUdptlsSctpClientDirect(address, password, ctx)
 	uc.Up()
+
+	if TCPAlternativeChannelAddr != "" {
+		uc.AlternativeChannel(TCPAlternativeChannelAddr)
+	}
 
 	connadp := udpconn2tun.NewUDPConn2Tun(uc.TunnelTxToTun, uc.TunnelRxFromTun)
 

@@ -36,6 +36,13 @@ func NewProviderServerSide(listenaddr string, password string, Uplistener transp
 		authlocation: httpconsts.Authlocation_Path,
 		ctx:          ctx,
 	}
+
+	streamrel := ctx.Value(interfaces.ExtraOptionsHTTPServerStreamRelay)
+
+	if streamrel != nil {
+		pss.streamrelay = streamrel.(*interfaces.ExtraOptionsHTTPServerStreamRelayValue).Relay
+	}
+
 	go pss.Start()
 	return pss
 }
@@ -47,6 +54,8 @@ type ProviderServerSide struct {
 	Uplistener   transport.UnderlayTransportListener
 	authlocation int
 	ctx          context.Context
+
+	streamrelay interfaces.StreamRelayer
 }
 
 func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -203,8 +212,13 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 			return
 		}
 		wsconn := websocketadp.NewWsAdp(conn)
+		if beardata.Flags&proto.HttpHeaderFlag_AlternativeChannelConnection != 0 {
+			pss.streamrelay.RelayStream(wsconn, pss.ctx)
+			return
+		}
 		go wrapper.ReceivePacketOverReader(beardata.Masker, wsconn, ppsd.RxChan, currentHTTPRequestCtx)
 		wrapper.SendPacketOverWriter(beardata.Masker, wsconn, ppsd.TxChan, 0, currentHTTPRequestCtx)
+		return
 	}
 
 	if r.Method == "GET" {

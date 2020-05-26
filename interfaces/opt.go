@@ -73,3 +73,11 @@ const ExtraOptionsUDPInitialData = "ExtraOptionsUDPInitialData"
 type ExtraOptionsUDPInitialDataValue struct {
 	Data []byte
 }
+
+const ExtraOptionsHTTPServerStreamRelay = "ExtraOptionsHTTPServerStreamRelay"
+
+type ExtraOptionsHTTPServerStreamRelayValue struct {
+	Relay StreamRelayer
+}
+
+const ExtraOptionsHTTPClientDialAlternativeChannel = "ExtraOptionsHTTPClientDialAlternativeChannel"

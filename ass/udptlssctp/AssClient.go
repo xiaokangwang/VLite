@@ -92,6 +92,8 @@ type UdptlsSctpClient struct {
 
 	uni  *uniclient.UnifiedConnectionClient
 	puni *puniClient.PacketUniClient
+
+	httpac *httpClient.ProviderClient
 }
 type UdptlsSctpClientStramToNetConnAdp struct {
 	rwc io.ReadWriteCloser
@@ -160,7 +162,9 @@ func (s *UdptlsSctpClient) Dial(network, address string, port uint16, ctx contex
 
 func (s *UdptlsSctpClient) DialDirect(address string, port uint16) (net.Conn, error) {
 	var Stream io.ReadWriteCloser
-	if s.uni != nil && UsePuni {
+	if s.httpac != nil {
+		Stream = s.httpac.DialWsAlternativeChannelConnection(s.ctx)
+	} else if s.uni != nil && UsePuni {
 		Stream = s.puni.ClientOpenStream()
 	} else {
 		Stream = s.udprelay.ClientOpenStream()
@@ -276,6 +280,9 @@ func (s *UdptlsSctpClient) Up() {
 		s.udprelay = udpsctpserver.NewPacketRelayClient(conn, C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)
 		s.udpserver = client2.UDPClient(connctx, C_C2STraffic, C_C2SDataTraffic, C_S2CTraffic, TunnelTxToTun, TunnelRxFromTun, s.udprelay)
 	}
+}
+func (s *UdptlsSctpClient) AlternativeChannel(url string) {
+	s.httpac = httpClient.NewProviderClientCreator(url, 0, 0, string(s.password), s.ctx).ConnectL(s.ctx)
 }
 
 type TCPSocketDialer interface {
