@@ -2,6 +2,7 @@ package udpunis
 
 import (
 	"context"
+	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
@@ -35,6 +36,7 @@ func (uus *UdpUniServer) Connection(conn net.Conn, ctx context.Context) context.
 	InitialData := InitialDataVal.(*interfaces.ExtraOptionsUDPInitialDataValue).Data
 	phv := uus.hh.Open(string(InitialData))
 	if phv == nil {
+		fmt.Println("Unable to decrypt initial data")
 		return nil
 	}
 

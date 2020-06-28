@@ -3,6 +3,7 @@ package udpunic
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
@@ -93,6 +94,7 @@ func (uucp *udpUniClientProxy) UniHandShake(token string) error {
 				uucp.initBuf = buf[:n]
 			}
 			uucp.conn.SetReadDeadline(time.Time{})
+			fmt.Println("Uni Handshake Done")
 			return nil
 		}
 	}

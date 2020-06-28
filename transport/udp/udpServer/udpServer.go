@@ -2,6 +2,7 @@ package udpServer
 
 import (
 	"context"
+	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/transport"
@@ -67,6 +68,7 @@ func (u *udpServer) Listener() {
 			connctx = u.under.Connection(usageConn, connctx)
 			//Should use connctx
 			if connctx == nil {
+				fmt.Println("Incorrect Connection untracked")
 				u.remoteConnTracker.Delete(a.String())
 			}
 		}

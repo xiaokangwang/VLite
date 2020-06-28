@@ -49,6 +49,7 @@ func (uic *UnifiedConnectionTransportHub) onConnection(conn net.Conn, ctx contex
 
 	if !uCT.Arw.Check(Attrib.Rand) {
 		//This connection Shall be discarded
+		fmt.Println("Rand Check failure")
 		conn.Close()
 		return nil
 	}
