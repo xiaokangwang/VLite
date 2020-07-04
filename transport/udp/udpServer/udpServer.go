@@ -52,7 +52,7 @@ func (u *udpServer) Listener() {
 		conn := &connImpl{
 			server:     u,
 			remoteAddr: a,
-			readchan:   make(chan []byte, 8),
+			readchan:   make(chan []byte, 32),
 		}
 
 		connx, ok := u.remoteConnTracker.LoadOrStore(a.String(), conn)
@@ -72,8 +72,11 @@ func (u *udpServer) Listener() {
 				u.remoteConnTracker.Delete(a.String())
 			}
 		}
-
-		conn.readchan <- bm[:c]
+		select {
+		case conn.readchan <- bm[:c]:
+		default:
+			fmt.Println("packet discarded")
+		}
 
 	}
 }
