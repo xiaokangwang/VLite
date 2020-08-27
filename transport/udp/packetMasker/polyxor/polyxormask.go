@@ -52,8 +52,6 @@ func (xm *XorMasker) maskInternal(input io.Reader, output io.Writer) error {
 
 		randsource.Read(polymask[:n-16])
 
-		//First generate packet mask seed
-
 		for i := 0; i < n-16; i++ {
 			buf[counter] ^= xm.MaskingPattern[counter]
 
