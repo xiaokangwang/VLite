@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
+	"github.com/xiaokangwang/VLite/transport/udp/packetMasker/masker2conn"
+	"github.com/xiaokangwang/VLite/transport/udp/packetMasker/presets/prependandxor"
 	"net"
 )
 
@@ -23,7 +25,9 @@ func (u *udpClient) Connect(ctx context.Context) (net.Conn, error, context.Conte
 		return nil, err, nil
 	}
 	usageConn := conn
-	//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
+	if v := ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v.(bool) == true {
+		usageConn = masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
+	}
 
 	id := []byte(conn.LocalAddr().String())
 	connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, id)

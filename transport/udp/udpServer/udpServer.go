@@ -6,6 +6,8 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/transport"
+	"github.com/xiaokangwang/VLite/transport/udp/packetMasker/masker2conn"
+	"github.com/xiaokangwang/VLite/transport/udp/packetMasker/presets/prependandxor"
 	"io"
 	"log"
 	"net"
@@ -65,7 +67,12 @@ func (u *udpServer) Listener() {
 			connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, connid)
 			connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 			connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: bm[:c]})
-			connctx = u.under.Connection(usageConn, connctx)
+			var usageConnT net.Conn
+			usageConnT = usageConn
+			if v := u.ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v.(bool) == true {
+				usageConnT = masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{0x1f, 0x0d}), usageConn)
+			}
+			connctx = u.under.Connection(usageConnT, connctx)
 			//Should use connctx
 			if connctx == nil {
 				fmt.Println("Incorrect Connection untracked")
