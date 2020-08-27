@@ -11,7 +11,6 @@ require (
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
 	github.com/google/gopacket v1.1.17
 	github.com/gorilla/websocket v1.4.2
-	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/juju/ratelimit v1.0.1
 	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/reedsolomon v1.9.3
@@ -19,24 +18,23 @@ require (
 	github.com/mustafaturan/bus v1.0.2
 	github.com/mustafaturan/monoton v1.0.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pion/dtls v1.5.4 // indirect
 	github.com/pion/dtls/v2 v2.0.0-rc.7
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.6
 	github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4
 	github.com/seiflotfy/cuckoofilter v0.0.0-20200416141329-862a88987de7
+	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/txthinking/runnergroup v0.0.0-20200327135940-540a793bb997 // indirect
 	github.com/txthinking/socks5 v0.0.0-20200327133705-caf148ab5e9d
 	github.com/txthinking/x v0.0.0-20200330144832-5ad2416896a9 // indirect
-	github.com/xiaokangwang/water v0.0.0-20180524022535-3e9597577724
 	github.com/xtaci/smux v1.5.12
-	golang.org/x/crypto v0.0.0-20200414173820-0848c9571904
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 )
 
-replace github.com/FlowerWrong/netstack => ./vendor/github.com/FlowerWrong/netstack
+replace github.com/FlowerWrong/netstack => ./vendor2/github.com/FlowerWrong/netstack
 
-replace github.com/FlowerWrong/water => ./vendor/github.com/FlowerWrong/water
+replace github.com/FlowerWrong/water => ./vendor2/github.com/FlowerWrong/water
 
-replace github.com/golang-collections/go-datastructures => ./vendor/github.com/golang-collections/go-datastructures
+replace github.com/golang-collections/go-datastructures => ./vendor2/github.com/golang-collections/go-datastructures
