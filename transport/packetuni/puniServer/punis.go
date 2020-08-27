@@ -55,7 +55,7 @@ func (pu *PacketUniServer) OnCarrier(conn net.Conn, connctx context.Context) {
 			case data := <-pu.TxChannel:
 				//spew.Dump(data)
 				C2STraffic <- interfaces.TrafficWithChannelTag(data)
-			case <-ctx.Done():
+			case <-ctx.Done(): //TODO Leak
 				return
 			}
 		}
