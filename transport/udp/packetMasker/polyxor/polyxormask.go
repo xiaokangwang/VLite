@@ -11,6 +11,8 @@ import (
 type XorMasker struct {
 	MaskingPattern []byte
 	MaskingSeed    string
+
+	MaskingPatternPoly uint64
 }
 
 func NewPolyXorMasker(masker string) *XorMasker {
@@ -26,9 +28,11 @@ func (xm *XorMasker) prepare() {
 
 	Seeder.Write([]byte(xm.MaskingSeed))
 	var maskerpattern bytes.Buffer
-	io.Copy(&maskerpattern, io.LimitReader(Seeder, 65536))
+	io.Copy(&maskerpattern, io.LimitReader(Seeder, 16))
 
 	xm.MaskingPattern = maskerpattern.Bytes()
+
+	xm.MaskingPatternPoly = crc64.Checksum(xm.MaskingPattern, crctable)
 }
 
 var crctable = crc64.MakeTable(crc64.ECMA)
@@ -46,14 +50,13 @@ func (xm *XorMasker) maskInternal(input io.Reader, output io.Writer) error {
 			return err
 		}
 
-		maskingseed := buf[n-16:]
+		maskingseed := buf[n-16 : n]
 
-		randsource := rand.New(rand.NewSource(int64(crc64.Checksum(maskingseed, crctable))))
+		randsource := rand.New(rand.NewSource(int64(xm.MaskingPatternPoly ^ crc64.Checksum(maskingseed, crctable))))
 
-		randsource.Read(polymask[:n-16])
+		randsource.Read(polymask[:n])
 
 		for i := 0; i < n-16; i++ {
-			buf[counter] ^= xm.MaskingPattern[counter]
 
 			buf[counter] ^= polymask[counter]
 

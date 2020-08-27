@@ -65,6 +65,7 @@ func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Cont
 			remoteAddress = remoteAddress[4:]
 			utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPFECEnabled, true)
 		}
+		utsc.ctx = context.WithValue(utsc.ctx, interfaces.ExtraOptionsUDPMask, string(utsc.password))
 		utsc.udpdialer = udpClient.NewUdpClient(remoteAddress, utsc.ctx)
 		if useUniConn {
 			utsc.udpdialer = udpunic.NewUdpUniClient(string(utsc.password), utsc.ctx, utsc.udpdialer)

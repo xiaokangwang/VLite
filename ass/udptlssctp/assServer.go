@@ -147,6 +147,7 @@ func (s *UdptlsSctpServer) Up() {
 			s.Address = s.Address[4:]
 
 		}
+		s.ctx = context.WithValue(s.ctx, interfaces.ExtraOptionsUDPMask, string(s.password))
 		if useUniConn {
 			var v = udpServer.NewUDPServer(s.Address, s.ctx, udpunis.NewUdpUniServer(string(s.password), s.ctx, unitransport))
 			s.udplistener = v

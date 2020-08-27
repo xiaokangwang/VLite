@@ -22,6 +22,8 @@ func main() {
 
 	var NetworkBuffering int
 
+	var UseUDPPolyMasking bool
+
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 
@@ -31,6 +33,8 @@ func main() {
 	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
 
 	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
+
+	flag.BoolVar(&UseUDPPolyMasking, "UseUDPPolyMasking", false, "Mask UDP packet to avoid matching")
 
 	flag.Parse()
 
@@ -43,6 +47,10 @@ func main() {
 	if NetworkBuffering != 0 {
 		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
+	}
+
+	if UseUDPPolyMasking {
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsUDPShouldMask, true)
 	}
 
 	us := udptlssctp.NewUdptlsSctpServer(address, password, ctx)

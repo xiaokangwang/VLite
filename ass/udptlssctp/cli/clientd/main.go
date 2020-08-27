@@ -21,6 +21,7 @@ func main() {
 	var LicenseRollOnly bool
 	var UseSystemHTTPProxy bool
 	var UseSystemSocksProxy bool
+	var UseUDPPolyMasking bool
 
 	var NetworkBuffering int
 
@@ -37,6 +38,7 @@ func main() {
 	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
 	flag.StringVar(&HTTPDialAddr, "HTTPDialAddr", "", "If set, HTTP Connections will dial this address instead of requesting DNS(apply to HTTP transport only)")
 	flag.StringVar(&TCPAlternativeChannelAddr, "TCPAlternativeChannelAddr", "", "If set, TCP connection will dial this address over ws(_WITHOUT_ PROTECTION) instead of over Datagram connection")
+	flag.BoolVar(&UseUDPPolyMasking, "UseUDPPolyMasking", false, "Mask UDP packet to avoid matching")
 
 	flag.Parse()
 
@@ -52,6 +54,10 @@ func main() {
 
 	if UseSystemSocksProxy {
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPUseSystemSocksProxy, true)
+	}
+
+	if UseUDPPolyMasking {
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsUDPShouldMask, true)
 	}
 
 	if HTTPDialAddr != "" {

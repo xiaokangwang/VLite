@@ -1,6 +1,7 @@
 package udpServer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
@@ -18,10 +19,15 @@ import (
 func NewUDPServer(address string, ctx context.Context, listener transport.UnderlayTransportListener) *udpServer {
 	var err error
 
+	masking := ""
+	if v := ctx.Value(interfaces.ExtraOptionsUDPMask); v != nil {
+		masking = v.(string)
+	}
 	us := &udpServer{
-		conn:  nil,
-		ctx:   ctx,
-		under: listener,
+		conn:    nil,
+		ctx:     ctx,
+		under:   listener,
+		masking: masking,
 	}
 
 	us.conn, err = net.ListenPacket("udp", address)
@@ -69,8 +75,12 @@ func (u *udpServer) Listener() {
 			connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: bm[:c]})
 			var usageConnT net.Conn
 			usageConnT = usageConn
-			if v := u.ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v.(bool) == true {
-				usageConnT = masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{0x1f, 0x0d}), usageConn)
+			if v := u.ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v != nil && v.(bool) == true {
+				masker := prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{})
+				demaskbuf := bytes.NewBuffer(nil)
+				masker.UnMask(bytes.NewReader(bm[:c]), demaskbuf)
+				connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: demaskbuf.Bytes()})
+				usageConnT = masker2conn.NewMaskerAdopter(masker, usageConn)
 			}
 			connctx = u.under.Connection(usageConnT, connctx)
 			//Should use connctx

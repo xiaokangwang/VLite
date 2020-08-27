@@ -81,3 +81,7 @@ type ExtraOptionsHTTPServerStreamRelayValue struct {
 }
 
 const ExtraOptionsHTTPClientDialAlternativeChannel = "ExtraOptionsHTTPClientDialAlternativeChannel"
+
+const ExtraOptionsUDPShouldMask = "ExtraOptionsUDPShouldMask"
+
+const ExtraOptionsUDPMask = "ExtraOptionsUDPMask"

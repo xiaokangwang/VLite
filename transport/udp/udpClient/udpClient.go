@@ -10,7 +10,14 @@ import (
 )
 
 func NewUdpClient(addr string, ctx context.Context) *udpClient {
-	return &udpClient{dest: addr, ctx: ctx}
+
+	masking := ""
+
+	if v := ctx.Value(interfaces.ExtraOptionsUDPMask); v != nil {
+		masking = v.(string)
+	}
+
+	return &udpClient{dest: addr, ctx: ctx, masking: masking}
 }
 
 type udpClient struct {
@@ -25,8 +32,8 @@ func (u *udpClient) Connect(ctx context.Context) (net.Conn, error, context.Conte
 		return nil, err, nil
 	}
 	usageConn := conn
-	if v := ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v.(bool) == true {
-		usageConn = masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
+	if v := ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v != nil && v.(bool) == true {
+		usageConn = masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{}), conn)
 	}
 
 	id := []byte(conn.LocalAddr().String())

@@ -18,8 +18,9 @@ func GetPrependAndXorMask(pw string, prependPattern []byte) interfaces.Masker {
 
 func GetPrependAndPolyXorMask(pw string, prependPattern []byte) interfaces.Masker {
 	XorLayer := polyxor.NewPolyXorMasker(pw)
+	CXorLayer := constantXor.NewXorMasker(pw)
 	prependLayer := prepend.NewPrependingMasker(prependPattern)
 
-	SynLayer := layers.NewSyntheticLayerMasker([]interfaces.Masker{XorLayer, prependLayer})
+	SynLayer := layers.NewSyntheticLayerMasker([]interfaces.Masker{XorLayer, CXorLayer, prependLayer})
 	return SynLayer
 }
