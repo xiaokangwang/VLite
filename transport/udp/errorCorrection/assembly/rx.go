@@ -7,6 +7,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"io/ioutil"
+	"strconv"
 	"time"
 )
 
@@ -53,9 +54,9 @@ func (pa *PacketAssembly) Rx() {
 			parch.doneBitmap = bitmap.New(pa.MaxDataShardPerChunk)
 			parch.ef = pa.ecff.Create(pa.ctx)
 
-			err = pa.RxReassembleBuffer.Add(string(pw.Seq), parch, time.Second*time.Duration(pa.RxMaxTimeInSecond))
+			err = pa.RxReassembleBuffer.Add(strconv.FormatUint(uint64(pw.Seq), 10), parch, time.Second*time.Duration(pa.RxMaxTimeInSecond))
 			if err != nil {
-				item, _ := pa.RxReassembleBuffer.Get(string(pw.Seq))
+				item, _ := pa.RxReassembleBuffer.Get(strconv.FormatUint(uint64(pw.Seq), 10))
 				parch = item.(*packetAssemblyRxChunkHolder)
 			}
 
