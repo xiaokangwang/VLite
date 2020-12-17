@@ -105,11 +105,13 @@ type connImpl struct {
 }
 
 func (c connImpl) Read(b []byte) (n int, err error) {
+	timer := time.NewTimer(time.Second * 400)
+	defer timer.Stop()
 	select {
 	case by := <-c.readchan:
 		copy(b, by)
 		return len(by), nil
-	case <-time.Tick(time.Second * 400):
+	case <-timer.C:
 		return 0, io.ErrClosedPipe
 	}
 

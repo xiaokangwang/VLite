@@ -21,6 +21,8 @@ type RxTxToConn struct {
 }
 
 func (r RxTxToConn) Read(b []byte) (n int, err error) {
+	timer := time.NewTimer(time.Second * 400)
+	defer timer.Stop()
 	select {
 	case rx := <-r.RxChan:
 		n = copy(b, rx)
@@ -30,7 +32,7 @@ func (r RxTxToConn) Read(b []byte) (n int, err error) {
 		return n, nil
 	case <-r.ctx.Done():
 		return 0, r.ctx.Err()
-	case <-time.NewTimer(time.Second * 400).C:
+	case <-timer.C:
 		return 0, io.EOF
 	}
 
