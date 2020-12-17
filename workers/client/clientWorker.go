@@ -92,11 +92,14 @@ func (ucc *UDPClientContext) pingRoutine() {
 	LastReconnect := time.Now()
 	tl := 0.0
 	isAggressivePingInProcess := false
+	timer := time.NewTimer(time.Second / 2)
+	defer timer.Stop()
 	for {
+		timer.Reset(time.Second / 2)
 		select {
 		case <-ucc.context.Done():
 			return
-		case timenow := <-time.NewTimer(time.Second / 2).C:
+		case timenow := <-timer.C:
 			shouldPingBeSend := false
 			if timenow.Sub(ucc.LastPongRecv).Seconds() > 5 {
 				shouldPingBeSend = true
