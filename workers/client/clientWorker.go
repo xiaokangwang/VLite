@@ -15,7 +15,6 @@ import (
 	"os"
 	"reflect"
 	"sync"
-	"syscall"
 	"time"
 )
 
