@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/lunixbochs/struc"
 	"github.com/mustafaturan/bus"
-	"github.com/xiaokangwang/VLite/clientInbound/stack"
+	"github.com/xiaokangwang/VLite/clientInbound/stackstub"
 	"github.com/xiaokangwang/VLite/clientInbound/tun"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/interfaces/ibus"
@@ -86,7 +86,7 @@ type UdptlsSctpClient struct {
 	udpdialer transport.UnderlayTransportDialer
 	udprelay  *udpsctpserver.PacketSCTPRelay
 	udpserver *client2.UDPClientContext
-	st        *stack.NetstackHolder
+	//st        *stack.NetstackHolder
 
 	password []byte
 	msgbus   *bus.Bus
@@ -267,11 +267,11 @@ func (s *UdptlsSctpClient) Up() {
 		debug.PrintStack()
 	}
 
-	stack2 := &stack.NetstackHolder{}
-	stack2.SetDialer(s)
-	stack2.InitializeStack("42.42.42.1", tunudplink, 1350)
+	stack2 := &stackstub.StackStub{}
 
-	s.st = stack2
+	stack2.HostWR(tunudplink)
+
+	//s.st = stack2
 
 	if s.uni != nil && UsePuni {
 		s.puni = puniClient.NewPacketUniClient(C_C2STraffic2, C_C2SDataTraffic2, C_S2CTraffic2, s.password, connctx)

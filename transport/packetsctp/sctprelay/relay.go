@@ -1,10 +1,8 @@
 package udpsctpserver
 
 import (
-	"bufio"
 	context "context"
 	"fmt"
-	"github.com/juju/ratelimit"
 	dtls "github.com/pion/dtls/v2"
 	"github.com/pion/logging"
 	"github.com/pion/sctp"
@@ -242,7 +240,7 @@ func (s *PacketSCTPRelay) ClientOpen() {
 	conf.Version = 2
 	conf.KeepAliveTimeout = 600 * time.Second
 
-	s.muxer, err = smux.Client(NewBufferedConn(scnn), conf)
+	s.muxer, err = smux.Client(scnn, conf)
 	if err != nil {
 		log.Println(err.Error())
 	}
@@ -260,42 +258,6 @@ func (s *PacketSCTPRelay) ClientOpenStream() io.ReadWriteCloser {
 	return scnn
 }
 
-type BufferedConn struct {
-	rwc  io.ReadWriteCloser
-	rwcb *bufio.Reader
-	rl   *ratelimit.Bucket
-}
-
-func (b *BufferedConn) prepare() {
-	b.rwcb = bufio.NewReaderSize(b.rwc, 65535*4)
-}
-
-func NewBufferedConn(str io.ReadWriteCloser) *BufferedConn {
-	r := &BufferedConn{rwc: str}
-	r.prepare()
-	return r
-}
-
-func (b *BufferedConn) RateLimitWrite(rl *ratelimit.Bucket) {
-	b.rl = rl
-}
-
-func (b BufferedConn) Read(p []byte) (n int, err error) {
-	return b.rwcb.Read(p)
-}
-
-func (b BufferedConn) Write(p []byte) (n int, err error) {
-	if b.rl != nil {
-		b.rl.Wait(int64(len(p)))
-		//fmt.Println(b.rl.Available())
-	}
-	return b.rwc.Write(p)
-}
-
-func (b BufferedConn) Close() error {
-	return b.rwc.Close()
-}
-
 func (s *PacketSCTPRelay) tcprelayconn(str *sctp.Stream) {
 	var err error
 	str.SetReliabilityParams(false, sctp.ReliabilityTypeReliable, 0)
@@ -304,17 +266,7 @@ func (s *PacketSCTPRelay) tcprelayconn(str *sctp.Stream) {
 	conf.Version = 2
 	conf.KeepAliveTimeout = 600 * time.Second
 
-	bufconn := NewBufferedConn(str)
-
-	if s.ratelimitServerTCPWriteBytePerSecond != 0 {
-		rlb := ratelimit.NewBucketWithQuantum(time.Second/10, int64(s.ratelimitServerTCPWriteMaxBucketSize), int64(s.ratelimitServerTCPWriteBytePerSecond)/10)
-
-		takeSum := s.ratelimitServerTCPWriteMaxBucketSize - s.ratelimitServerTCPWriteInitialSize
-
-		rlb.TakeAvailable(int64(takeSum))
-
-		bufconn.RateLimitWrite(rlb)
-	}
+	bufconn := str
 
 	s.muxer, err = smux.Server(bufconn, conf)
 	if err != nil {
