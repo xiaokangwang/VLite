@@ -11,7 +11,6 @@ require (
 	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
 	github.com/google/gopacket v1.1.17
 	github.com/gorilla/websocket v1.4.2
-	github.com/juju/ratelimit v1.0.1
 	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/reedsolomon v1.9.3
 	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
