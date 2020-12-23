@@ -47,7 +47,8 @@ func (so SocksHandler) TCPHandle(sr *socks5.Server, c *net.TCPConn, r *socks5.Re
 			fmt.Println(reserr.Error())
 			return socks5.ErrBadRequest
 		}
-
+		//TODO Find out ways to detect this
+		addr.Port = 0
 		caddr := addr
 
 		if addr.Port == 0 {
@@ -109,8 +110,6 @@ func (so SocksHandler) TCPHandle(sr *socks5.Server, c *net.TCPConn, r *socks5.Re
 			return socks5.ErrBadRequest
 		}
 
-
-
 		p := socks5.NewReply(socks5.RepSuccess, aR, addrR, portR)
 
 		var buf bytes.Buffer
@@ -121,7 +120,7 @@ func (so SocksHandler) TCPHandle(sr *socks5.Server, c *net.TCPConn, r *socks5.Re
 		io.Copy(c, bytes.NewReader(buf.Bytes()))
 
 		//Wait for connection to end
-		io.Copy(ioutil.Discard,c)
+		io.Copy(ioutil.Discard, c)
 
 		s.udpassoc.Delete(caddr.Port)
 		udpconn.Close()
