@@ -85,3 +85,17 @@ const ExtraOptionsHTTPClientDialAlternativeChannel = "ExtraOptionsHTTPClientDial
 const ExtraOptionsUDPShouldMask = "ExtraOptionsUDPShouldMask"
 
 const ExtraOptionsUDPMask = "ExtraOptionsUDPMask"
+
+const ExtraOptionsAbstractDialer = "ExtraOptionsUseAbstractDialer"
+
+type ExtraOptionsAbstractDialerValue struct {
+	AbsDialer    AbstractDialer
+	UseAbsDialer bool
+}
+
+const ExtraOptionsAbstractListener = "ExtraOptionsUseAbstractListener"
+
+type ExtraOptionsAbstractListenerValue struct {
+	AbsListener    AbstractListener
+	UseAbsListener bool
+}

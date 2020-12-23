@@ -7,7 +7,6 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport/http/websocketadp"
 	"github.com/xiaokangwang/VLite/transport/http/wrapper"
-	"golang.org/x/net/websocket"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -20,8 +19,17 @@ func (pc *ProviderClient) DialWsConnection(ctx context.Context) {
 	HttpRequestEndpointws := "ws" + pc.HttpRequestEndpoint[4:]
 	var ws io.ReadWriteCloser
 	var err error
-	if false {
-		ws, err = websocket.Dial(HttpRequestEndpointws+"/"+h, "", pc.HttpRequestEndpoint)
+
+	var AbsDialer interfaces.AbstractDialer
+	var useAbsDialer = false
+
+	if val := ctx.Value(interfaces.ExtraOptionsAbstractDialer); val != nil {
+		AbsDialer = val.(*interfaces.ExtraOptionsAbstractDialerValue).AbsDialer
+		useAbsDialer = val.(*interfaces.ExtraOptionsAbstractDialerValue).UseAbsDialer
+	}
+
+	if useAbsDialer {
+		ws, err = AbsDialer.Dial(ctx, h)
 		if err != nil {
 			fmt.Println(err.Error())
 		}

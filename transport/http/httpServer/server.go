@@ -43,7 +43,20 @@ func NewProviderServerSide(listenaddr string, password string, Uplistener transp
 		pss.streamrelay = streamrel.(*interfaces.ExtraOptionsHTTPServerStreamRelayValue).Relay
 	}
 
-	go pss.Start()
+	var useAbsListener = false
+	var AbsListener interfaces.AbstractListener
+
+	if val := ctx.Value(interfaces.ExtraOptionsAbstractListener); val != nil {
+		AbsListener = val.(*interfaces.ExtraOptionsAbstractListenerValue).AbsListener
+		useAbsListener = val.(*interfaces.ExtraOptionsAbstractListenerValue).UseAbsListener
+	}
+
+	if useAbsListener {
+		go pss.StartAbs(AbsListener)
+	} else {
+		go pss.Start()
+	}
+
 	return pss
 }
 
@@ -136,6 +149,45 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	ppsd, currentHTTPRequestCtx, done := pss.parpareforconnection(beardata)
+	if done {
+		http.NotFound(rw, r)
+		return
+	}
+
+	upg := websocket.Upgrader{}
+	if beardata.Flags&proto.HttpHeaderFlag_WebsocketConnection != 0 {
+		conn, err := upg.Upgrade(rw, r, nil)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		wsconn := websocketadp.NewWsAdp(conn)
+		if beardata.Flags&proto.HttpHeaderFlag_AlternativeChannelConnection != 0 {
+			pss.streamrelay.RelayStream(wsconn, pss.ctx)
+			return
+		}
+		go wrapper.ReceivePacketOverReader(beardata.Masker, wsconn, ppsd.RxChan, currentHTTPRequestCtx)
+		wrapper.SendPacketOverWriter(beardata.Masker, wsconn, ppsd.TxChan, 0, currentHTTPRequestCtx)
+		return
+	}
+
+	if r.Method == "GET" {
+		fmt.Println("GET")
+		ppsd.Get(rw, r, beardata.Masker, currentHTTPRequestCtx)
+		return
+	}
+
+	if r.Method == "POST" {
+		fmt.Println("POST")
+		ppsd.Post(rw, r, beardata.Masker, currentHTTPRequestCtx)
+		return
+	}
+
+	http.NotFound(rw, r)
+}
+
+func (pss ProviderServerSide) parpareforconnection(beardata *proto.HttpHeaderHolder) (*ProviderConnServerSide, context.Context, bool) {
 	ppsd := &ProviderConnServerSide{}
 
 	copy(ppsd.ID[:], beardata.ConnID[:])
@@ -174,8 +226,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 	}
 
 	if !ppsd.noReplayChecker.Check(beardata.Rand[:]) {
-		http.NotFound(rw, r)
-		return
+		return nil, nil, true
 	}
 
 	currentHTTPRequestCtx := pss.ctx
@@ -203,37 +254,7 @@ func (pss ProviderServerSide) ServeHTTP(rw http.ResponseWriter, r *http.Request)
 			fmt.Println(erremit.Error())
 		}
 	}
-
-	upg := websocket.Upgrader{}
-	if beardata.Flags&proto.HttpHeaderFlag_WebsocketConnection != 0 {
-		conn, err := upg.Upgrade(rw, r, nil)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-		wsconn := websocketadp.NewWsAdp(conn)
-		if beardata.Flags&proto.HttpHeaderFlag_AlternativeChannelConnection != 0 {
-			pss.streamrelay.RelayStream(wsconn, pss.ctx)
-			return
-		}
-		go wrapper.ReceivePacketOverReader(beardata.Masker, wsconn, ppsd.RxChan, currentHTTPRequestCtx)
-		wrapper.SendPacketOverWriter(beardata.Masker, wsconn, ppsd.TxChan, 0, currentHTTPRequestCtx)
-		return
-	}
-
-	if r.Method == "GET" {
-		fmt.Println("GET")
-		ppsd.Get(rw, r, beardata.Masker, currentHTTPRequestCtx)
-		return
-	}
-
-	if r.Method == "POST" {
-		fmt.Println("POST")
-		ppsd.Post(rw, r, beardata.Masker, currentHTTPRequestCtx)
-		return
-	}
-
-	http.NotFound(rw, r)
+	return ppsd, currentHTTPRequestCtx, false
 }
 
 func (pss *ProviderServerSide) Start() {
@@ -241,6 +262,40 @@ func (pss *ProviderServerSide) Start() {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func (pss *ProviderServerSide) StartAbs(AbsListener interfaces.AbstractListener) {
+
+	for {
+		conn, bearerc, err := AbsListener.Accept(pss.ctx)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		beardata := pss.hh.Open(bearerc)
+
+		if beardata == nil {
+			conn.Close()
+			continue
+		}
+		timediff := math.Abs(float64(beardata.Time - time.Now().Unix()))
+		//fmt.Println(timediff)
+		if timediff > 120 {
+			conn.Close()
+			continue
+		}
+
+		ppsd, currentHTTPRequestCtx, done := pss.parpareforconnection(beardata)
+		if done {
+			conn.Close()
+			continue
+		}
+
+		go wrapper.ReceivePacketOverReader(beardata.Masker, conn, ppsd.RxChan, currentHTTPRequestCtx)
+		go wrapper.SendPacketOverWriter(beardata.Masker, conn, ppsd.TxChan, 0, currentHTTPRequestCtx)
+
+	}
+
 }
 
 type ProviderConnServerSide struct {
