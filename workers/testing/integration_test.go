@@ -13,11 +13,18 @@ import (
 	"time"
 )
 
+type Stub struct {
+}
+
+func (s Stub) GetTransmitLayerSentRecvStats() (uint64, uint64) {
+	panic("implement me")
+}
+
 func TestInitializeNil(t *testing.T) {
 	server := server2.UDPServer(context.Background(),
 		make(chan server2.UDPServerTxToClientTraffic),
 		make(chan server2.UDPServerTxToClientDataTraffic),
-		make(chan server2.UDPServerRxFromClientTraffic))
+		make(chan server2.UDPServerRxFromClientTraffic), &Stub{})
 	_ = server
 
 	client := client2.UDPClient(context.Background(),
@@ -25,7 +32,7 @@ func TestInitializeNil(t *testing.T) {
 		make(chan client2.UDPClientTxToServerDataTraffic),
 		make(chan client2.UDPClientRxFromServerTraffic),
 		make(chan interfaces.UDPPacket),
-		make(chan interfaces.UDPPacket))
+		make(chan interfaces.UDPPacket), &Stub{})
 	_ = client
 }
 
@@ -91,7 +98,7 @@ func TestInitializeWithDataCopy(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -99,7 +106,7 @@ func TestInitializeWithDataCopy(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -189,7 +196,7 @@ func TestInitializeWithDataCopy2(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -197,7 +204,7 @@ func TestInitializeWithDataCopy2(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -290,7 +297,7 @@ func TestInitializeWithDataCopy3(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -298,7 +305,7 @@ func TestInitializeWithDataCopy3(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -393,7 +400,7 @@ func TestInitializeWithDataCopy4(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -401,7 +408,7 @@ func TestInitializeWithDataCopy4(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -496,7 +503,7 @@ func TestInitializeWithDataCopy5(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -504,7 +511,7 @@ func TestInitializeWithDataCopy5(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -600,7 +607,7 @@ func TestInitializeWithDataCopy6(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -608,7 +615,7 @@ func TestInitializeWithDataCopy6(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -708,7 +715,7 @@ func TestInitializeWithDataCopy6WithShortTimeout(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -716,7 +723,7 @@ func TestInitializeWithDataCopy6WithShortTimeout(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -815,7 +822,7 @@ func TestInitializeWithDataCopyFullCone(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -823,7 +830,7 @@ func TestInitializeWithDataCopyFullCone(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -955,7 +962,7 @@ func TestInitializeWithDataCopy5_Plus(t *testing.T) {
 	server := server2.UDPServer(ccontext,
 		S_S2CTraffic,
 		S_S2CDataTraffic,
-		S_C2STraffic)
+		S_C2STraffic, &Stub{})
 	_ = server
 
 	client := client2.UDPClient(ccontext,
@@ -963,7 +970,7 @@ func TestInitializeWithDataCopy5_Plus(t *testing.T) {
 		C_C2SDataTraffic,
 		C_S2CTraffic,
 		TunnelTxToTun,
-		TunnelRxFromTun)
+		TunnelRxFromTun, &Stub{})
 	_ = client
 
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{
@@ -1065,5 +1072,3 @@ func TestInitializeWithDataCopy5_Plus(t *testing.T) {
 
 	<-time.NewTimer(time.Second * 4).C
 }
-
-

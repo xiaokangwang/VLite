@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/lunixbochs/struc"
 	"github.com/stretchr/testify/assert"
@@ -17,13 +18,13 @@ import (
 type listenerStub struct {
 }
 
-func (l listenerStub) Connection(conn net.Conn) {
+func (l listenerStub) Connection(conn net.Conn, context context.Context) context.Context {
 	var buf [1601]byte
 	for {
 		n, err := conn.Read(buf[:])
 		if err != nil {
 			fmt.Println(err)
-			return
+			return context
 		}
 
 		payload := buf[:n]
@@ -35,23 +36,23 @@ func (l listenerStub) Connection(conn net.Conn) {
 
 func TestSetupServer(t *testing.T) {
 	listener := new(listenerStub)
-	httpServer.NewProviderServerSide("127.0.0.1:8801", "pw", listener)
+	httpServer.NewProviderServerSide("127.0.0.1:8801", "pw", listener, context.TODO())
 }
 
 func TestSetupServer2(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8802", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8802", "pw", listener, context.TODO())
 	_ = hs
 }
 
 func TestClientDial(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8803", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8803", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8803", 1, 1, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8803", 1, 1, "pw", context.Background())
 
 	conn := httpClientI.AsConn()
 
@@ -81,12 +82,12 @@ func TestFillerLen(t *testing.T) {
 
 func TestClientDialRepeat(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8804", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8804", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8804", 1, 1, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8804", 1, 1, "pw", context.Background())
 
 	conn := httpClientI.AsConn()
 
@@ -110,12 +111,12 @@ func TestClientDialRepeat(t *testing.T) {
 
 func TestClientDialRepeatMutiThreaded(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8805", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8805", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8805", 4, 4, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8805", 4, 4, "pw", context.Background())
 
 	time.Sleep(5 * time.Second)
 
@@ -141,12 +142,12 @@ func TestClientDialRepeatMutiThreaded(t *testing.T) {
 
 func TestClientDialRepeatMutiThreadedMassive(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8806", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8806", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8806", 16, 16, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8806", 16, 16, "pw", context.Background())
 
 	time.Sleep(8 * time.Second)
 
@@ -172,12 +173,12 @@ func TestClientDialRepeatMutiThreadedMassive(t *testing.T) {
 
 func TestBufferSizeDeduction(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8807", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8807", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8807", 1, 1, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8807", 1, 1, "pw", context.Background())
 
 	time.Sleep(1 * time.Second)
 
@@ -192,12 +193,12 @@ func TestBufferSizeDeduction(t *testing.T) {
 
 func TestBufferSizeDeductionTx(t *testing.T) {
 	listener := new(listenerStub)
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8808", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8808", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8808", 1, 1, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8808", 1, 1, "pw", context.Background())
 
 	time.Sleep(1 * time.Second)
 
@@ -215,12 +216,12 @@ func TestBufferSizeDeductionMockRxBuffered(t *testing.T) {
 	listener := new(listenerStub)
 	httpServer.WriteBufferSize = 4096
 
-	hs := httpServer.NewProviderServerSide("127.0.0.1:8809", "pw", listener)
+	hs := httpServer.NewProviderServerSide("127.0.0.1:8809", "pw", listener, context.Background())
 	_ = hs
 
 	time.Sleep(time.Second)
 
-	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8809", 1, 1, "pw")
+	httpClientI := httpClient.NewProviderClient("http://127.0.0.1:8809", 1, 1, "pw", context.Background())
 
 	time.Sleep(1 * time.Second)
 
