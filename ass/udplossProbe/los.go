@@ -13,10 +13,11 @@ import (
 type sr struct {
 }
 
-func (s sr) Connection(conn net.Conn, ctx context.Context) {
+func (s sr) Connection(conn net.Conn, ctx context.Context) context.Context {
 	server := lossPattern.NewLossPatternServer(conn)
 	time.Sleep(20 * time.Minute)
 	_ = server
+	return ctx
 }
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 	if Listen {
 		udpServer.NewUDPServer(remoteAddress, context.TODO(), &sr{})
 	} else {
-		c, err, _ := udpClient.NewUdpClient(remoteAddress, context.TODO()).Connect()
+		c, err, _ := udpClient.NewUdpClient(remoteAddress, context.TODO()).Connect(context.Background())
 		if err != nil {
 			panic(err)
 		}
