@@ -5,6 +5,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	client2 "github.com/xiaokangwang/VLite/workers/client"
 	server2 "github.com/xiaokangwang/VLite/workers/server"
 	"log"
@@ -17,23 +18,33 @@ type Stub struct {
 }
 
 func (s Stub) GetTransmitLayerSentRecvStats() (uint64, uint64) {
-	panic("implement me")
+	return 0, 0
 }
 
 func TestInitializeNil(t *testing.T) {
-	server := server2.UDPServer(context.Background(),
+
+	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
+	ccontext, cancel := context.WithCancel(rootContext)
+
+	server := server2.UDPServer(ccontext,
 		make(chan server2.UDPServerTxToClientTraffic),
 		make(chan server2.UDPServerTxToClientDataTraffic),
 		make(chan server2.UDPServerRxFromClientTraffic), &Stub{})
 	_ = server
 
-	client := client2.UDPClient(context.Background(),
+	client := client2.UDPClient(ccontext,
 		make(chan client2.UDPClientTxToServerTraffic),
 		make(chan client2.UDPClientTxToServerDataTraffic),
 		make(chan client2.UDPClientRxFromServerTraffic),
 		make(chan interfaces.UDPPacket),
 		make(chan interfaces.UDPPacket), &Stub{})
 	_ = client
+
+	cancel()
 }
 
 func DataCopier(context context.Context,
@@ -74,6 +85,10 @@ func DataCopier(context context.Context,
 
 func TestInitializeWithDataCopy(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -172,6 +187,10 @@ func TestInitializeWithDataCopy(t *testing.T) {
 
 func TestInitializeWithDataCopy2(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -273,6 +292,10 @@ func TestInitializeWithDataCopy2(t *testing.T) {
 
 func TestInitializeWithDataCopy3(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -376,6 +399,10 @@ func TestInitializeWithDataCopy3(t *testing.T) {
 
 func TestInitializeWithDataCopy4(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -479,6 +506,10 @@ func TestInitializeWithDataCopy4(t *testing.T) {
 
 func TestInitializeWithDataCopy5(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -583,6 +614,10 @@ func TestInitializeWithDataCopy5(t *testing.T) {
 
 func TestInitializeWithDataCopy6(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -689,6 +724,10 @@ func TestInitializeWithDataCopy6(t *testing.T) {
 
 func TestInitializeWithDataCopy6WithShortTimeout(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	ccontext = context.WithValue(ccontext, interfaces.ExtraOptionsUDPTimeoutTime, &interfaces.ExtraOptionsUDPTimeoutTimeValue{TimeoutTimeInSeconds: 1})
@@ -798,6 +837,10 @@ func TestInitializeWithDataCopy6WithShortTimeout(t *testing.T) {
 
 func TestInitializeWithDataCopyFullCone(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	S_S2CTraffic := make(chan server2.UDPServerTxToClientTraffic, 8)
@@ -936,6 +979,10 @@ func TestInitializeWithDataCopyFullCone(t *testing.T) {
 
 func TestInitializeWithDataCopy5_Plus(t *testing.T) {
 	rootContext := context.Background()
+
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsConnID, []byte("S1"))
+	rootContext = context.WithValue(rootContext, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+
 	ccontext, cancel := context.WithCancel(rootContext)
 
 	//ccontext = context.WithValue(ccontext,interfaces.ExtraOptionsUDPTimeoutTime,&interfaces.ExtraOptionsUDPTimeoutTimeValue{TimeoutTimeInSeconds:1})

@@ -9,7 +9,6 @@ import (
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport/http/httpClient"
 	"github.com/xiaokangwang/VLite/transport/http/httpServer"
-	"github.com/xiaokangwang/VLite/transport/http/wrapper"
 	"net"
 	"testing"
 	"time"
@@ -175,6 +174,7 @@ func TestClientDialRepeatMutiThreadedMassive(t *testing.T) {
 
 }
 
+/*
 func TestBufferSizeDeduction(t *testing.T) {
 	t.Skip("This function is deprecated")
 	listener := new(listenerStub)
