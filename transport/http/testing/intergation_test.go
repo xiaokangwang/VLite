@@ -19,19 +19,23 @@ type listenerStub struct {
 }
 
 func (l listenerStub) Connection(conn net.Conn, context context.Context) context.Context {
-	var buf [1601]byte
-	for {
-		n, err := conn.Read(buf[:])
-		if err != nil {
-			fmt.Println(err)
-			return context
+
+	go func() {
+		var buf [1601]byte
+		for {
+			n, err := conn.Read(buf[:])
+			if err != nil {
+				fmt.Println(err)
+
+			}
+
+			payload := buf[:n]
+
+			conn.Write(payload)
 		}
+	}()
 
-		payload := buf[:n]
-
-		conn.Write(payload)
-	}
-
+	return context
 }
 
 func TestSetupServer(t *testing.T) {
@@ -172,6 +176,7 @@ func TestClientDialRepeatMutiThreadedMassive(t *testing.T) {
 }
 
 func TestBufferSizeDeduction(t *testing.T) {
+	t.Skip("This function is deprecated")
 	listener := new(listenerStub)
 	hs := httpServer.NewProviderServerSide("127.0.0.1:8807", "pw", listener, context.Background())
 	_ = hs
@@ -192,6 +197,7 @@ func TestBufferSizeDeduction(t *testing.T) {
 }
 
 func TestBufferSizeDeductionTx(t *testing.T) {
+	t.Skip("This function is deprecated")
 	listener := new(listenerStub)
 	hs := httpServer.NewProviderServerSide("127.0.0.1:8808", "pw", listener, context.Background())
 	_ = hs
@@ -213,6 +219,7 @@ func TestBufferSizeDeductionTx(t *testing.T) {
 }
 
 func TestBufferSizeDeductionMockRxBuffered(t *testing.T) {
+	t.Skip("This function is deprecated")
 	listener := new(listenerStub)
 	httpServer.WriteBufferSize = 4096
 
