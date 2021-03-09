@@ -48,6 +48,13 @@ func NewPacketAssembly(ctx context.Context, conn net.Conn) *PacketAssembly {
 	go pa.Tx()
 	go pa.Report()
 
+	disablefec := ctx.Value(interfaces.ExtraOptionsDisableFEC)
+	if disablefec != nil {
+		if disablefec.(bool) == true {
+			pa.FECEnabled = 0
+			return pa
+		}
+	}
 	go pa.boostingReceiver()
 
 	return pa

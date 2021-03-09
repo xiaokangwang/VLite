@@ -53,7 +53,7 @@ func ParseHeader(conn io.Reader) (*proto.StreamConnectDomainHeader, bool) {
 	}
 
 	var w [65536]byte
-	l, err := conn.Read(w[:])
+	l, err := conn.Read(w[:2])
 	if err != nil {
 		log.Println(err)
 		return nil, true

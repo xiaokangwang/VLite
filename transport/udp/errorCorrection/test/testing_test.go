@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"github.com/xiaokangwang/VLite/interfaces/ibus"
 	"github.com/xiaokangwang/VLite/transport/udp/errorCorrection/assembly"
 	"io"
 	"math/rand"
@@ -86,6 +87,8 @@ func TestInitialize(t *testing.T) {
 	_ = w3
 
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 	mcRx := NewMockConn(r, w2, 0)
 	rx := assembly.NewPacketAssembly(ctx, mcRx)
 	rxConn := rx.AsConn()
@@ -110,6 +113,8 @@ func TestSingleMessage(t *testing.T) {
 	_ = w3
 
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 	mcRx := NewMockConn(r, w2, 0)
 	rx := assembly.NewPacketAssembly(ctx, mcRx)
 	rxConn := rx.AsConn()
@@ -147,6 +152,8 @@ func TestManyMessage(t *testing.T) {
 	_ = w3
 
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 	mcRx := NewMockConn(r, w2, 0)
 	rx := assembly.NewPacketAssembly(ctx, mcRx)
 	rxConn := rx.AsConn()
@@ -184,6 +191,8 @@ func TestSendingRateTrail(t *testing.T) {
 
 	ctx = context.WithValue(ctx, interfaces.ExtraOptionsFECPacketAssemblyOpt,
 		opt)
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -236,6 +245,8 @@ func TestSendingRateRealOne(t *testing.T) {
 
 	ctx = context.WithValue(ctx, interfaces.ExtraOptionsFECPacketAssemblyOpt,
 		opt)
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -291,6 +302,8 @@ func TestSendingRateRealOne(t *testing.T) {
 
 func TestSendingLossRepair(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -347,6 +360,9 @@ func TestSendingLossRepair(t *testing.T) {
 
 func TestSendingLossNoFEC(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsDisableFEC, true)
 
 	r, w := io.Pipe()
 
@@ -403,6 +419,8 @@ func TestSendingLossNoFEC(t *testing.T) {
 
 func TestSendingLossRepairHuge(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -459,6 +477,8 @@ func TestSendingLossRepairHuge(t *testing.T) {
 
 func TestSendingLossRepairHugeLossPlus(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -515,6 +535,8 @@ func TestSendingLossRepairHugeLossPlus(t *testing.T) {
 
 func TestSendingLossRepairHugeLossPlusPlus(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -571,6 +593,8 @@ func TestSendingLossRepairHugeLossPlusPlus(t *testing.T) {
 
 func TestSendingLossRepairLossPlus(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -627,6 +651,8 @@ func TestSendingLossRepairLossPlus(t *testing.T) {
 
 func TestSendingLossRepairLossPlusPlus(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -749,6 +775,8 @@ func (m MockConnRandDelay) SetWriteDeadline(t time.Time) error {
 
 func TestSendingLossRepairWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -805,6 +833,8 @@ func TestSendingLossRepairWriteRandDelay(t *testing.T) {
 
 func TestSendingLossRepairHugeWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -861,6 +891,8 @@ func TestSendingLossRepairHugeWriteRandDelay(t *testing.T) {
 
 func TestSendingLossRepairHugeLossPlusWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -917,6 +949,8 @@ func TestSendingLossRepairHugeLossPlusWriteRandDelay(t *testing.T) {
 
 func TestSendingLossRepairHugeLossPlusPlusWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -973,6 +1007,8 @@ func TestSendingLossRepairHugeLossPlusPlusWriteRandDelay(t *testing.T) {
 
 func TestSendingLossRepairLossPlusWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 
@@ -1029,6 +1065,8 @@ func TestSendingLossRepairLossPlusWriteRandDelay(t *testing.T) {
 
 func TestSendingLossRepairLossPlusPlusWriteRandDelay(t *testing.T) {
 	ctx := context.TODO()
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte("S1"))
+	ctx = context.WithValue(ctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
 
 	r, w := io.Pipe()
 

@@ -99,3 +99,5 @@ type ExtraOptionsAbstractListenerValue struct {
 	AbsListener    AbstractListener
 	UseAbsListener bool
 }
+
+const ExtraOptionsDisableFEC = "ExtraOptionsDisableFEC"
