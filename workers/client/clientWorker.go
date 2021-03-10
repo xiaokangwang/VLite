@@ -211,8 +211,14 @@ func (ucc *UDPClientContext) RxFromServerWorker() {
 				case proto.CommandByte_Send:
 					ucc.rxFromServerWorker_OnControlSend(payloadData)
 					break
+				case proto.CommandByte_SendV6:
+					ucc.rxFromServerWorker_OnControlSendV6(payloadData)
+					break
 				case proto.CommandByte_Associate:
 					ucc.rxFromServerWorker_OnControlAssociate(payloadData)
+					break
+				case proto.CommandByte_AssociateV6:
+					ucc.rxFromServerWorker_OnControlAssociateV6(payloadData)
 					break
 				case proto.CommandByte_ChannelDestroy:
 					ucc.rxFromServerWorker_OnControlChannelDestroy(payloadData)
@@ -269,6 +275,27 @@ func (ucc *UDPClientContext) rxFromServerWorker_OnControlSend(reader io.Reader) 
 
 	ucc.LocalTxToTun <- udpPacket
 }
+
+func (ucc *UDPClientContext) rxFromServerWorker_OnControlSendV6(reader io.Reader) {
+	var err error
+	_ = err
+	sendHeader := &proto.SendV6Header{}
+	err = struc.Unpack(reader, sendHeader)
+	if err != nil {
+		log.Println(err)
+	}
+
+	sourceaddr := &net.UDPAddr{IP: proto.IPv6ByteToAddr(sendHeader.SourceIP), Port: int(sendHeader.SourcePort)}
+	destaddr := &net.UDPAddr{IP: proto.IPv6ByteToAddr(sendHeader.DestIP), Port: int(sendHeader.DestPort)}
+	udpPacket := interfaces.UDPPacket{
+		Source:  sourceaddr,
+		Dest:    destaddr,
+		Payload: sendHeader.Payload,
+	}
+
+	ucc.LocalTxToTun <- udpPacket
+}
+
 func (ucc *UDPClientContext) rxFromServerWorker_OnControlAssociate(reader io.Reader) {
 	var err error
 	_ = err
@@ -289,6 +316,43 @@ func (ucc *UDPClientContext) rxFromServerWorker_OnControlAssociate(reader io.Rea
 	ret = proto.AssociateDoneHeader(*associateHeader)
 
 	reth := &proto.CommandHeader{CommandByte: proto.CommandByte_AssociateDone}
+
+	retbuf := bytes.NewBuffer(nil)
+
+	err = struc.Pack(retbuf, reth)
+	if err != nil {
+		log.Println(err)
+	}
+
+	err = struc.Pack(retbuf, &ret)
+	if err != nil {
+		log.Println(err)
+	}
+
+	retpack := UDPClientTxToServerTraffic{Channel: 0, Payload: retbuf.Bytes()}
+
+	ucc.TxToServer <- retpack
+}
+func (ucc *UDPClientContext) rxFromServerWorker_OnControlAssociateV6(reader io.Reader) {
+	var err error
+	_ = err
+	associateHeader := &proto.AssociateV6Header{}
+	err = struc.Unpack(reader, associateHeader)
+	if err != nil {
+		log.Println(err)
+	}
+	sourceaddr := &net.UDPAddr{IP: proto.IPv6ByteToAddr(associateHeader.SourceIP), Port: int(associateHeader.SourcePort)}
+	destaddr := &net.UDPAddr{IP: proto.IPv6ByteToAddr(associateHeader.DestIP), Port: int(associateHeader.DestPort)}
+
+	key := UDPClientTrackedAddrKey{Source: *sourceaddr, Dest: *destaddr}
+	value := &UDPClientTrackedAddrContext{Channel: associateHeader.Channel}
+	ucc.TrackedAddr.Store(key.Key(), value)
+	ucc.TrackedChannel.Store(associateHeader.Channel, key)
+
+	ret := proto.AssociateDoneV6Header{}
+	ret = proto.AssociateDoneV6Header(*associateHeader)
+
+	reth := &proto.CommandHeader{CommandByte: proto.CommandByte_AssociateDoneV6}
 
 	retbuf := bytes.NewBuffer(nil)
 
@@ -357,26 +421,55 @@ func (ucc *UDPClientContext) txToServerWorker(pack *interfaces.UDPPacket) {
 		sendingBuf := &bytes.Buffer{}
 		sendH := &proto.CommandHeader{CommandByte: proto.CommandByte_Send}
 
-		send := &proto.SendHeader{
-			SourceIP:   proto.IPv4AddrToByte(pack.Source.IP),
-			DestIP:     proto.IPv4AddrToByte(pack.Dest.IP),
-			SourcePort: uint16(pack.Source.Port),
-			DestPort:   uint16(pack.Dest.Port),
-			PayloadLen: uint16(len(pack.Payload)),
-			Payload:    pack.Payload,
+		if pack.Source.IP.To4() != nil {
+			//IPv4
+			send := &proto.SendHeader{
+				SourceIP:   proto.IPv4AddrToByte(pack.Source.IP.To4()),
+				DestIP:     proto.IPv4AddrToByte(pack.Dest.IP.To4()),
+				SourcePort: uint16(pack.Source.Port),
+				DestPort:   uint16(pack.Dest.Port),
+				PayloadLen: uint16(len(pack.Payload)),
+				Payload:    pack.Payload,
+			}
+
+			err = struc.Pack(sendingBuf, sendH)
+			if err != nil {
+				log.Println(err)
+			}
+
+			err = struc.Pack(sendingBuf, send)
+			if err != nil {
+				log.Println(err)
+			}
+
+			ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
+
+		} else {
+			send := &proto.SendV6Header{
+				SourceIP:   proto.IPv6AddrToByte(pack.Source.IP.To16()),
+				DestIP:     proto.IPv6AddrToByte(pack.Dest.IP.To16()),
+				SourcePort: uint16(pack.Source.Port),
+				DestPort:   uint16(pack.Dest.Port),
+				PayloadLen: uint16(len(pack.Payload)),
+				Payload:    pack.Payload,
+			}
+
+			sendH.CommandByte = proto.CommandByte_SendV6
+
+			err = struc.Pack(sendingBuf, sendH)
+			if err != nil {
+				log.Println(err)
+			}
+
+			err = struc.Pack(sendingBuf, send)
+			if err != nil {
+				log.Println(err)
+			}
+
+			ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
+
 		}
 
-		err = struc.Pack(sendingBuf, sendH)
-		if err != nil {
-			log.Println(err)
-		}
-
-		err = struc.Pack(sendingBuf, send)
-		if err != nil {
-			log.Println(err)
-		}
-
-		ucc.TxToServer <- UDPClientTxToServerTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
 	}
 }
 

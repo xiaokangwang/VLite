@@ -121,8 +121,14 @@ func (uscc *UDPServerContext) RxFromClientWorker() {
 				case proto.CommandByte_Send:
 					uscc.rxFromClientWorker_OnControlSend(payloadData)
 					break
+				case proto.CommandByte_SendV6:
+					uscc.rxFromClientWorker_OnControlSendV6(payloadData)
+					break
 				case proto.CommandByte_AssociateDone:
 					uscc.rxFromClientWorker_OnControlAssociateDone(payloadData)
+					break
+				case proto.CommandByte_AssociateDoneV6:
+					uscc.rxFromClientWorker_OnControlAssociateV6Done(payloadData)
 					break
 				case proto.CommandByte_Ping:
 					uscc.sendPong(payloadData)
@@ -241,6 +247,65 @@ func (uscc *UDPServerContext) rxFromClientWorker_OnControlSend(reader io.Reader)
 	Tracker.lock.Unlock()
 
 }
+func (uscc *UDPServerContext) rxFromClientWorker_OnControlSendV6(reader io.Reader) {
+	sendHeader := &proto.SendV6Header{}
+	var err error
+	_ = err
+
+	err = struc.Unpack(reader, sendHeader)
+	if err != nil {
+		log.Println(err)
+	}
+
+	sourceAddr := &net.UDPAddr{}
+	sourceAddr.Port = int(sendHeader.SourcePort)
+	sourceAddr.IP = proto.IPv6ByteToAddr(sendHeader.SourceIP)
+
+	UntrackedDefault := &UDPServerClientLogicConnectionContext{LocalAddr: *sourceAddr}
+
+	Tracker := UntrackedDefault
+
+	actualI, loaded := uscc.ClientLogicConnection.LoadOrStore(sourceAddr.String(), UntrackedDefault)
+	if loaded {
+		Tracker = actualI.(*UDPServerClientLogicConnectionContext)
+	}
+
+	Tracker.lock.Lock()
+
+	destaddr := &net.UDPAddr{IP: proto.IPv6ByteToAddr(sendHeader.DestIP), Port: int(sendHeader.DestPort)}
+	uscc.trackConnection(*sourceAddr, *destaddr)
+
+	//Is there a socket ready? Create one if there is none
+
+	if Tracker.Conn == nil {
+		dialCtx := context.WithValue(uscc.context,
+			interfaces.ExtraOptionsLocalUDPBindPort,
+			interfaces.ExtraOptionsLocalUDPBindPortValue{LocalPort: uint16(sourceAddr.Port)})
+		conn, err := workers.Dialer.Dial("udp",
+			proto.IPv6ByteToAddr(sendHeader.DestIP).String(),
+			sendHeader.DestPort, dialCtx)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		Tracker.Conn = conn
+		if destaddr.Port == 53 {
+			Tracker.NoWait = true
+		}
+		go uscc.rxFromRemoteListener(Tracker)
+	}
+
+	//OK, we have got a conn and now its time to send the payload
+	UDPConn := Tracker.Conn.(net.PacketConn)
+
+	_, err = UDPConn.WriteTo(sendHeader.Payload,
+		&net.UDPAddr{Port: int(sendHeader.DestPort), IP: proto.IPv6ByteToAddr(sendHeader.DestIP)})
+	if err != nil {
+		log.Println(err)
+	}
+	Tracker.lock.Unlock()
+
+}
 
 //Must in new goroutine, ALWAYS block!
 func (uscc *UDPServerContext) rxFromRemoteListener(tracker *UDPServerClientLogicConnectionContext) {
@@ -334,25 +399,49 @@ func (uscc *UDPServerContext) txToClient(payload []byte, tracker *UDPServerClien
 
 		command := proto.CommandHeader{CommandByte: proto.CommandByte_Send}
 
-		send := proto.SendHeader{
-			SourceIP:   proto.IPv4AddrToByte(from.IP),
-			DestIP:     proto.IPv4AddrToByte(tracker.LocalAddr.IP),
-			SourcePort: uint16(from.Port),
-			DestPort:   uint16(tracker.LocalAddr.Port),
-			PayloadLen: uint16(len(payload)),
-			Payload:    payload,
-		}
-		err = struc.Pack(sendingBuf, &command)
-		if err != nil {
-			log.Println(err)
+		if from.IP.To4() != nil {
+			send := proto.SendHeader{
+				SourceIP:   proto.IPv4AddrToByte(from.IP.To4()),
+				DestIP:     proto.IPv4AddrToByte(tracker.LocalAddr.IP.To4()),
+				SourcePort: uint16(from.Port),
+				DestPort:   uint16(tracker.LocalAddr.Port),
+				PayloadLen: uint16(len(payload)),
+				Payload:    payload,
+			}
+			err = struc.Pack(sendingBuf, &command)
+			if err != nil {
+				log.Println(err)
+			}
+
+			err = struc.Pack(sendingBuf, &send)
+			if err != nil {
+				log.Println(err)
+			}
+
+			uscc.TxToClient <- UDPServerTxToClientTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
+		} else {
+			command.CommandByte = proto.CommandByte_SendV6
+			send := proto.SendV6Header{
+				SourceIP:   proto.IPv6AddrToByte(from.IP.To16()),
+				DestIP:     proto.IPv6AddrToByte(tracker.LocalAddr.IP.To16()),
+				SourcePort: uint16(from.Port),
+				DestPort:   uint16(tracker.LocalAddr.Port),
+				PayloadLen: uint16(len(payload)),
+				Payload:    payload,
+			}
+			err = struc.Pack(sendingBuf, &command)
+			if err != nil {
+				log.Println(err)
+			}
+
+			err = struc.Pack(sendingBuf, &send)
+			if err != nil {
+				log.Println(err)
+			}
+
+			uscc.TxToClient <- UDPServerTxToClientTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
 		}
 
-		err = struc.Pack(sendingBuf, &send)
-		if err != nil {
-			log.Println(err)
-		}
-
-		uscc.TxToClient <- UDPServerTxToClientTraffic{Channel: 0, Payload: sendingBuf.Bytes()}
 	}
 }
 
@@ -366,41 +455,80 @@ func (uscc *UDPServerContext) trackConnectionAnnounceIfPossible(source net.UDPAd
 	var err error
 	_ = err
 
-	s := &proto.AssociateHeader{}
+	if source.IP.To4() != nil {
+		s := &proto.AssociateHeader{}
 
-	s.Channel = channel
+		s.Channel = channel
 
-	s.SourceIP = proto.IPv4AddrToByte(source.IP)
-	s.SourcePort = uint16(source.Port)
+		s.SourceIP = proto.IPv4AddrToByte(source.IP)
+		s.SourcePort = uint16(source.Port)
 
-	s.DestIP = proto.IPv4AddrToByte(dest.IP)
-	s.DestPort = uint16(dest.Port)
+		s.DestIP = proto.IPv4AddrToByte(dest.IP)
+		s.DestPort = uint16(dest.Port)
 
-	header := proto.CommandHeader{CommandByte: proto.CommandByte_Associate}
+		header := proto.CommandHeader{CommandByte: proto.CommandByte_Associate}
 
-	buf := bytes.NewBuffer(nil)
-	err = struc.Pack(buf, header)
-	if err != nil {
-		log.Println(err)
-		return false
+		buf := bytes.NewBuffer(nil)
+		err = struc.Pack(buf, header)
+		if err != nil {
+			log.Println(err)
+			return false
+		}
+		err = struc.Pack(buf, s)
+		if err != nil {
+			log.Println(err)
+			return false
+		}
+
+		ToClientTxTraffic := UDPServerTxToClientTraffic{}
+		ToClientTxTraffic.Channel = 0x00
+		ToClientTxTraffic.Payload = buf.Bytes()
+
+		select {
+		case uscc.TxToClient <- ToClientTxTraffic:
+			return true
+		default:
+			log.Println("Connection Track Request Discarded As It Would Block")
+			return false
+		}
+	} else {
+		s := &proto.AssociateV6Header{}
+
+		s.Channel = channel
+
+		s.SourceIP = proto.IPv6AddrToByte(source.IP)
+		s.SourcePort = uint16(source.Port)
+
+		s.DestIP = proto.IPv6AddrToByte(dest.IP)
+		s.DestPort = uint16(dest.Port)
+
+		header := proto.CommandHeader{CommandByte: proto.CommandByte_AssociateV6}
+
+		buf := bytes.NewBuffer(nil)
+		err = struc.Pack(buf, header)
+		if err != nil {
+			log.Println(err)
+			return false
+		}
+		err = struc.Pack(buf, s)
+		if err != nil {
+			log.Println(err)
+			return false
+		}
+
+		ToClientTxTraffic := UDPServerTxToClientTraffic{}
+		ToClientTxTraffic.Channel = 0x00
+		ToClientTxTraffic.Payload = buf.Bytes()
+
+		select {
+		case uscc.TxToClient <- ToClientTxTraffic:
+			return true
+		default:
+			log.Println("Connection Track Request Discarded As It Would Block")
+			return false
+		}
 	}
-	err = struc.Pack(buf, s)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
 
-	ToClientTxTraffic := UDPServerTxToClientTraffic{}
-	ToClientTxTraffic.Channel = 0x00
-	ToClientTxTraffic.Payload = buf.Bytes()
-
-	select {
-	case uscc.TxToClient <- ToClientTxTraffic:
-		return true
-	default:
-		log.Println("Connection Track Request Discarded As It Would Block")
-		return false
-	}
 }
 
 //Must non-block, source always represent a address at client's network space
@@ -564,7 +692,40 @@ func (uscc *UDPServerContext) rxFromClientWorker_OnControlAssociateDone(reader i
 	}
 
 }
+func (uscc *UDPServerContext) rxFromClientWorker_OnControlAssociateV6Done(reader io.Reader) {
+	var err error
+	_ = err
 
+	h := &proto.AssociateDoneV6Header{}
+	err = struc.Unpack(reader, h)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	source := net.UDPAddr{Port: int(h.SourcePort), IP: proto.IPv6ByteToAddr(h.SourceIP)}
+	dest := net.UDPAddr{Port: int(h.DestPort), IP: proto.IPv6ByteToAddr(h.DestIP)}
+
+	trackerI, ok := uscc.ClientLogicConnection.Load(source.String())
+	if !ok {
+		return
+	}
+	tracker := trackerI.(*UDPServerClientLogicConnectionContext)
+
+	trackerR := &UDPTrackedConnectionContext{}
+
+	actual, found := tracker.TrackedConnection.LoadOrStore(dest.String(), trackerR)
+
+	if found {
+		trackerR = actual.(*UDPTrackedConnectionContext)
+	}
+
+	if trackerR.Channel == h.Channel {
+		trackerR.Tracked = true
+	}
+
+}
 func (uscc *UDPServerContext) rxFromClientWorker_OnData(channel uint16, p []byte) {
 
 	var err error
