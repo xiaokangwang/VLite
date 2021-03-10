@@ -59,7 +59,7 @@ type connImpl struct {
 
 func (c connImpl) ReadFrom(b []byte) (n int, addr net.Addr, err error) {
 	select {
-	case by , more := <-c.readchan:
+	case by, more := <-c.readchan:
 		if !more {
 			return 0, nil, io.ErrClosedPipe
 		}
@@ -72,13 +72,24 @@ func (c connImpl) ReadFrom(b []byte) (n int, addr net.Addr, err error) {
 }
 
 func (c connImpl) WriteTo(b []byte, addr net.Addr) (n int, err error) {
-	pack := interfaces.UDPPacket{
-		Source:  c.remoteAddr.(*net.UDPAddr),
-		Dest:    addr.(*net.UDPAddr),
-		Payload: b,
-	}
 
-	c.server.LocalRxFromTun <- pack
+	if addr.(*net.UDPAddr).IP.To4() == nil {
+		pack := interfaces.UDPPacket{
+			Source:  c.remoteAddr.(*net.UDPAddr),
+			Dest:    addr.(*net.UDPAddr),
+			Payload: b,
+		}
+		c.server.LocalRxFromTun <- pack
+	} else {
+		XSource := c.remoteAddr.(*net.UDPAddr)
+		XSource.IP = net.IPv6zero
+		pack := interfaces.UDPPacket{
+			Source:  XSource,
+			Dest:    addr.(*net.UDPAddr),
+			Payload: b,
+		}
+		c.server.LocalRxFromTun <- pack
+	}
 
 	return len(b), nil
 }

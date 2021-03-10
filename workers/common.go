@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"net"
+	"strings"
 )
 
 const UDPReadingTimeout = 1200
@@ -31,6 +32,10 @@ func (s systemDialer) Dial(network, address string, port uint16, ctx context.Con
 			return l2, err
 		}
 		return l, err
+	}
+
+	if strings.Contains(address, ":") {
+		address = "[" + address + "]"
 	}
 
 	uconn, err := dialer.DialContext(ctx, network, fmt.Sprintf("%v:%v", address, port))

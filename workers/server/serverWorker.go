@@ -455,7 +455,7 @@ func (uscc *UDPServerContext) trackConnectionAnnounceIfPossible(source net.UDPAd
 	var err error
 	_ = err
 
-	if source.IP.To4() != nil {
+	if source.IP.To4() != nil && dest.IP.To4() != nil {
 		s := &proto.AssociateHeader{}
 
 		s.Channel = channel

@@ -421,7 +421,7 @@ func (ucc *UDPClientContext) txToServerWorker(pack *interfaces.UDPPacket) {
 		sendingBuf := &bytes.Buffer{}
 		sendH := &proto.CommandHeader{CommandByte: proto.CommandByte_Send}
 
-		if pack.Source.IP.To4() != nil {
+		if pack.Source.IP.To4() != nil && pack.Dest.IP.To4() != nil {
 			//IPv4
 			send := &proto.SendHeader{
 				SourceIP:   proto.IPv4AddrToByte(pack.Source.IP.To4()),
