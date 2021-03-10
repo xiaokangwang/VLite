@@ -3,7 +3,6 @@ module github.com/xiaokangwang/VLite
 go 1.13
 
 require (
-	github.com/FlowerWrong/netstack v0.0.0-20191009041010-964b57cc9e6e
 	github.com/FlowerWrong/water v0.0.0-20180301012659-01a4eaa1f6f2
 	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d
 	github.com/davecgh/go-spew v1.1.1
@@ -32,7 +31,6 @@ require (
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 )
 
-replace github.com/FlowerWrong/netstack => ./vendor2/github.com/FlowerWrong/netstack
 
 replace github.com/FlowerWrong/water => ./vendor2/github.com/FlowerWrong/water
 
