@@ -30,10 +30,11 @@ import (
 	"time"
 )
 
-func NewUdptlsSctpClient(remoteAddress string, password string, ctx context.Context) *UdptlsSctpClient {
+func NewUdptlsSctpClient(remoteAddress string, password string, tunName string, ctx context.Context) *UdptlsSctpClient {
 	utsc := &UdptlsSctpClient{}
 	utsc.Address = remoteAddress
 	utsc.password = []byte(password)
+	utsc.tunName = tunName
 	utsc.msgbus = ibus.NewMessageBus()
 
 	ctxwbus := context.WithValue(ctx, interfaces.ExtraOptionsMessageBus, utsc.msgbus)
@@ -95,6 +96,8 @@ type UdptlsSctpClient struct {
 	puni *puniClient.PacketUniClient
 
 	httpac *httpClient.ProviderClient
+
+	tunName string
 }
 type UdptlsSctpClientStramToNetConnAdp struct {
 	rwc io.ReadWriteCloser
@@ -259,7 +262,7 @@ func (s *UdptlsSctpClient) Up() {
 	TunnelTxToTun := make(chan interfaces.UDPPacket)
 	TunnelRxFromTun := make(chan interfaces.UDPPacket)
 
-	waterw := tun.NewTun()
+	waterw := tun.NewTun(s.tunName)
 
 	tunudplink, err := tun.NewTunToUDPLink(TunnelTxToTun, TunnelRxFromTun, *waterw)
 	if err != nil {

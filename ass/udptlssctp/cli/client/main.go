@@ -9,6 +9,7 @@ import (
 	"github.com/xiaokangwang/VLite/ass/socksinterface"
 	"github.com/xiaokangwang/VLite/ass/udptlssctp"
 	"github.com/xiaokangwang/VLite/interfaces"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,6 +19,9 @@ func main() {
 	var password string
 	var address string
 	var addressL string
+
+	var tunName string
+
 	var LicenseRollOnly bool
 
 	var UseSystemHTTPProxy bool
@@ -33,6 +37,7 @@ func main() {
 	flag.StringVar(&password, "Password", "", "")
 	flag.StringVar(&address, "Address", "", "")
 	flag.StringVar(&addressL, "AddressL", "", "")
+	flag.StringVar(&tunName, "TunName", "tunvlite", "")
 	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
 	flag.BoolVar(&UseSystemHTTPProxy, "UseSystemHTTPProxy", false, "Respect System HTTP Proxy Environment Var  HTTP_PROXY HTTPS_PROXY (apply to HTTP transport only)")
 	flag.BoolVar(&UseSystemSocksProxy, "UseSystemSocksProxy", false, "Respect System Socks Proxy Environment Var ALL_PROXY (apply to HTTP transport only)")
@@ -73,7 +78,7 @@ func main() {
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
 	}
 
-	uc := udptlssctp.NewUdptlsSctpClient(address, password, ctx)
+	uc := udptlssctp.NewUdptlsSctpClient(address, password, tunName, ctx)
 
 	if TCPAlternativeChannelAddr != "" {
 		uc.AlternativeChannel(TCPAlternativeChannelAddr)
