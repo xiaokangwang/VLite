@@ -1,15 +1,13 @@
+//go:build linux
 // +build linux
 
 package water
 
 import (
-	"log"
 	"os"
-	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
-
 )
 
 const (
@@ -38,7 +36,7 @@ func init() {
 	} else if _, err := os.Stat(DevTun); err == nil {
 		tunFile = DevTun
 	} else {
-		log.Fatal("NO support for", runtime.GOOS)
+		tunFile = "no support for tun/tap"
 	}
 }
 
@@ -71,10 +69,9 @@ func newTAP(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	syscall.SetNonblock(filefd,true)
+	syscall.SetNonblock(filefd, true)
 
-	file := os.NewFile(uintptr(filefd),tunFile)
-
+	file := os.NewFile(uintptr(filefd), tunFile)
 
 	ifce = &Interface{isTAP: true, ReadWriteCloser: file, name: name}
 	ifce.fd = int(file.Fd())
@@ -101,9 +98,9 @@ func newTUN(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	syscall.SetNonblock(filefd,true)
+	syscall.SetNonblock(filefd, true)
 
-	file := os.NewFile(uintptr(filefd),tunFile)
+	file := os.NewFile(uintptr(filefd), tunFile)
 
 	ifce = &Interface{isTAP: false, ReadWriteCloser: file, name: name}
 	ifce.fd = int(file.Fd())
