@@ -112,7 +112,7 @@ func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 	if uucp.initBuf != nil {
 		n = copy(b, uucp.initBuf)
 		uucp.initBuf = nil
-		return n, err
+		return n, nil
 	}
 	for {
 		n, err = uucp.conn.Read(b)
