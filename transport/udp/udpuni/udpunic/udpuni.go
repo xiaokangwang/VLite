@@ -8,7 +8,9 @@ import (
 	"github.com/xiaokangwang/VLite/proto"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
+	"github.com/xiaokangwang/VLite/transport/udp/packetarmor"
 	"io"
+	"log"
 	mrand "math/rand"
 	"net"
 	"reflect"
@@ -21,6 +23,7 @@ func NewUdpUniClient(password string,
 		password: password,
 		ctx:      ctx,
 		hh:       headerHolder.NewHttpHeaderHolderProcessor2(password, "UdpUniSecret"),
+		armor:    packetarmor.NewPacketArmor(password, "UdpUniPacketArmor", true),
 		under:    under,
 	}
 }
@@ -29,7 +32,8 @@ type UdpUniClient struct {
 	password string
 	ctx      context.Context
 
-	hh *headerHolder.HttpHeaderHolderProcessor
+	hh    *headerHolder.HttpHeaderHolderProcessor
+	armor *packetarmor.PacketArmor
 
 	under transport.UnderlayTransportDialer
 }
@@ -43,6 +47,7 @@ func (uuc *UdpUniClient) Connect(ctx context.Context) (net.Conn, error, context.
 		ctx:     connctx,
 		initBuf: nil,
 		conn:    conn,
+		armor:   uuc.armor,
 	}
 
 	ph := proto.HttpHeaderHolder{}
@@ -69,31 +74,72 @@ func (uuc *UdpUniClient) Connect(ctx context.Context) (net.Conn, error, context.
 
 	w := uuc.hh.Seal(ph)
 
-	err = uc.UniHandShake(w)
+	packetArmorPaddingTo := 0
+	packetArmorVal := ctx.Value(interfaces.ExtraOptionsUsePacketArmor)
+	if packetArmorVal != nil {
+		packetArmorVal := packetArmorVal.(interfaces.ExtraOptionsUsePacketArmorValue)
+		if packetArmorVal.UsePacketArmor {
+			packetArmorPaddingTo = packetArmorVal.PacketArmorPaddingTo
+		}
+	}
+
+	err = uc.UniHandShake(w, packetArmorPaddingTo)
 	if err != nil {
 		return nil, err, nil
 	}
 	return uc, nil, uc.ctx
 }
 
-func (uucp *udpUniClientProxy) UniHandShake(token string) error {
+func (uucp *udpUniClientProxy) UniHandShake(token string, packetarmorPaddingTo int) error {
 	var err error
 	var n int
-	uucp.initBuf2 = []byte(token)
-	for i := 0; i < 300; i++ {
-		uucp.conn.SetReadDeadline(time.Now().Add(time.Second / 4))
-		_, err = uucp.conn.Write([]byte(token))
-		if err != nil {
-			return err
+	uucp.token = token
+	if packetarmorPaddingTo != 0 {
+		uucp.shouldUseArmor = true
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		ticker := time.NewTicker(time.Second / 4)
+		defer ticker.Stop()
+		for i := 0; i < 300; i++ {
+			select {
+			case <-ticker.C:
+				if packetarmorPaddingTo != 0 {
+					pack, err := uucp.armor.Pack([]byte(token), packetarmorPaddingTo)
+					if err != nil {
+						log.Println("unable to create pack", err)
+					}
+					uucp.conn.Write(pack)
+				} else {
+					uucp.conn.Write([]byte(token))
+				}
+
+				break
+			case <-ctx.Done():
+				return
+			}
 		}
+	}()
+	for i := 0; i < 300; i++ {
 		var buf [1600]byte
 		n, err = uucp.conn.Read(buf[:])
 
 		if err == nil {
-			if !reflect.DeepEqual(buf[:n], []byte(token)) {
-				uucp.initBuf = buf[:n]
+			if packetarmorPaddingTo == 0 {
+				if !reflect.DeepEqual(buf[:n], []byte(token)) {
+					uucp.initBuf = buf[:n]
+				}
+			} else {
+				decrypted, err := uucp.armor.Unpack(buf[:n])
+				if err != nil {
+					continue
+				}
+				if !reflect.DeepEqual(decrypted, []byte(token)) {
+					err = nil
+					break
+				}
 			}
-			uucp.conn.SetReadDeadline(time.Time{})
 			fmt.Println("Uni Handshake Done")
 			return nil
 		}
@@ -102,10 +148,12 @@ func (uucp *udpUniClientProxy) UniHandShake(token string) error {
 }
 
 type udpUniClientProxy struct {
-	ctx      context.Context
-	initBuf  []byte
-	initBuf2 []byte
-	conn     net.Conn
+	ctx            context.Context
+	initBuf        []byte
+	token          string
+	conn           net.Conn
+	armor          *packetarmor.PacketArmor
+	shouldUseArmor bool
 }
 
 func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
@@ -116,9 +164,17 @@ func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 	}
 	for {
 		n, err = uucp.conn.Read(b)
-		if reflect.DeepEqual(b[:n], uucp.initBuf2) {
-			continue
+		if uucp.shouldUseArmor {
+			_, err := uucp.armor.Unpack(b[:n])
+			if err == nil {
+				continue
+			}
+		} else {
+			if reflect.DeepEqual(b[:n], []byte(uucp.token)) {
+				continue
+			}
 		}
+
 		return
 	}
 }

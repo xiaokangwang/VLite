@@ -101,3 +101,10 @@ type ExtraOptionsAbstractListenerValue struct {
 }
 
 const ExtraOptionsDisableFEC = "ExtraOptionsDisableFEC"
+
+const ExtraOptionsUsePacketArmor = "ExtraOptionsUsePacketArmor"
+
+type ExtraOptionsUsePacketArmorValue struct {
+	PacketArmorPaddingTo int
+	UsePacketArmor       bool
+}

@@ -6,6 +6,7 @@ import (
 	"github.com/xiaokangwang/VLite/interfaces"
 	"github.com/xiaokangwang/VLite/transport"
 	"github.com/xiaokangwang/VLite/transport/http/headerHolder"
+	"github.com/xiaokangwang/VLite/transport/udp/packetarmor"
 	"net"
 	"reflect"
 	"time"
@@ -17,6 +18,7 @@ func NewUdpUniServer(password string,
 		password: password,
 		ctx:      ctx,
 		hh:       headerHolder.NewHttpHeaderHolderProcessor2(password, "UdpUniSecret"),
+		armor:    packetarmor.NewPacketArmor(password, "UdpUniPacketArmor", false),
 		upper:    upper,
 	}
 }
@@ -25,7 +27,8 @@ type UdpUniServer struct {
 	password string
 	ctx      context.Context
 
-	hh *headerHolder.HttpHeaderHolderProcessor
+	hh    *headerHolder.HttpHeaderHolderProcessor
+	armor *packetarmor.PacketArmor
 
 	upper transport.UnderlayTransportListener
 }
@@ -34,7 +37,26 @@ func (uus *UdpUniServer) Connection(conn net.Conn, ctx context.Context) context.
 
 	InitialDataVal := ctx.Value(interfaces.ExtraOptionsUDPInitialData)
 	InitialData := InitialDataVal.(*interfaces.ExtraOptionsUDPInitialDataValue).Data
-	phv := uus.hh.Open(string(InitialData))
+
+	usePacketArmor := false
+	packetArmorVal := ctx.Value(interfaces.ExtraOptionsUsePacketArmor)
+	if packetArmorVal != nil {
+		packetArmorVal := packetArmorVal.(interfaces.ExtraOptionsUsePacketArmorValue)
+		if packetArmorVal.UsePacketArmor {
+			usePacketArmor = true
+		}
+	}
+	initdata := string(InitialData)
+	if usePacketArmor {
+		data, err := uus.armor.Unpack(InitialData)
+		if err != nil {
+			fmt.Println("Unable to decrypt initial data armor")
+			return nil
+		}
+		initdata = string(data)
+	}
+
+	phv := uus.hh.Open(initdata)
 	if phv == nil {
 		fmt.Println("Unable to decrypt initial data")
 		return nil
@@ -48,7 +70,19 @@ func (uus *UdpUniServer) Connection(conn net.Conn, ctx context.Context) context.
 
 	ctx = context.WithValue(ctx, interfaces.ExtraOptionsUniConnAttrib, univ)
 
-	return uus.upper.Connection(&udpUniClientProxy{conn: conn, initBuf: InitialData}, ctx)
+	if usePacketArmor {
+		data, err := uus.armor.Pack([]byte(initdata), len(InitialData))
+		if err != nil {
+			fmt.Println("Unable to reply initial data")
+			return nil
+		}
+		conn.Write(data)
+	} else {
+		conn.Write([]byte(initdata))
+	}
+
+	return uus.upper.Connection(&udpUniClientProxy{conn: conn, initBuf: []byte(initdata),
+		armor: uus.armor, useArmoredPacket: usePacketArmor}, ctx)
 
 }
 
@@ -57,17 +91,35 @@ func (uus *UdpUniServer) AsUnderlayTransportListener() transport.UnderlayTranspo
 }
 
 type udpUniClientProxy struct {
-	initBuf []byte
-	conn    net.Conn
+	initBuf          []byte
+	conn             net.Conn
+	useArmoredPacket bool
+	armor            *packetarmor.PacketArmor
 }
 
 func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 	for {
 		n, err = uucp.conn.Read(b)
-		if reflect.DeepEqual(b[:n], uucp.initBuf) {
-			uucp.Write(uucp.initBuf)
-			continue
+		if uucp.useArmoredPacket {
+			data, err := uucp.armor.Unpack(b[:n])
+			if err != nil {
+				return
+			}
+			if reflect.DeepEqual(data, uucp.initBuf) {
+				data, err := uucp.armor.Pack(data, n)
+				if err != nil {
+					return
+				}
+				uucp.Write(data)
+				continue
+			}
+		} else {
+			if reflect.DeepEqual(b[:n], uucp.initBuf) {
+				uucp.Write(uucp.initBuf)
+				continue
+			}
 		}
+
 		return
 	}
 }
