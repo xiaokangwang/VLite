@@ -8,13 +8,14 @@ import (
 )
 
 func TestArmor(t *testing.T) {
-	packetArmer := NewPacketArmor("Testing Password", "PacketArmor,VLite")
+	packetArmerC := NewPacketArmor("Testing Password", "PacketArmor,VLite", true)
 	var data [64]byte
 	io.ReadFull(rand.Reader, data[:])
-	result, err := packetArmer.Pack(data[:], 1200)
+	result, err := packetArmerC.Pack(data[:], 1200)
 	assert.NoError(t, err)
 	assert.Equal(t, 1200, len(result))
-	original, err := packetArmer.Unpack(result)
+	packetArmerS := NewPacketArmor("Testing Password", "PacketArmor,VLite", false)
+	original, err := packetArmerS.Unpack(result)
 	assert.NoError(t, err)
 	assert.Equal(t, data[:], original)
 }

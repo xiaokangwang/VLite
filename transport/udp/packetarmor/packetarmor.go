@@ -12,18 +12,24 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func NewPacketArmor(password, salt string) *PacketArmor {
-	return &PacketArmor{password: password, salt: salt}
+func NewPacketArmor(password, salt string, isClient bool) *PacketArmor {
+	return &PacketArmor{password: password, salt: salt, isClient: isClient}
 }
 
 type PacketArmor struct {
 	password string
 	salt     string
+	isClient bool
 }
 
-func (a *PacketArmor) getKey() (cipher.AEAD, error) {
+func (a *PacketArmor) getKey(isUp bool) (cipher.AEAD, error) {
 	hasher := sha3.NewCShake128(nil, []byte(a.salt))
 	hasher.Write([]byte(a.password))
+	if isUp == a.isClient {
+		hasher.Write([]byte("U"))
+	} else {
+		hasher.Write([]byte("D"))
+	}
 
 	keyin := make([]byte, 64)
 
@@ -39,7 +45,7 @@ func (a *PacketArmor) getKey() (cipher.AEAD, error) {
 var errLengthTooShort = errors.New("pack length too short")
 
 func (a *PacketArmor) Pack(input []byte, length int) ([]byte, error) {
-	key, err := a.getKey()
+	key, err := a.getKey(true)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +80,7 @@ func (a *PacketArmor) Pack(input []byte, length int) ([]byte, error) {
 }
 
 func (a *PacketArmor) Unpack(encryptedInput []byte) ([]byte, error) {
-	key, err := a.getKey()
+	key, err := a.getKey(false)
 	if err != nil {
 		return nil, err
 	}
