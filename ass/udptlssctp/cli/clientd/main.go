@@ -24,6 +24,7 @@ func main() {
 	var UseUDPPolyMasking bool
 
 	var NetworkBuffering int
+	var UDPHandShakeMaskingSize int
 
 	var HTTPDialAddr string
 
@@ -36,6 +37,7 @@ func main() {
 	flag.BoolVar(&UseSystemHTTPProxy, "UseSystemHTTPProxy", false, "Respect System HTTP Proxy Environment Var HTTP_PROXY HTTPS_PROXY(apply to HTTP transport only)")
 	flag.BoolVar(&UseSystemSocksProxy, "UseSystemSocksProxy", false, "Respect System Socks Proxy Environment Var ALL_PROXY(apply to HTTP transport only)")
 	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
+	flag.IntVar(&UDPHandShakeMaskingSize, "UDPHandShakeMaskingSize", 0, "UDP Handshake Masking Size")
 	flag.StringVar(&HTTPDialAddr, "HTTPDialAddr", "", "If set, HTTP Connections will dial this address instead of requesting DNS(apply to HTTP transport only)")
 	flag.StringVar(&TCPAlternativeChannelAddr, "TCPAlternativeChannelAddr", "", "If set, TCP connection will dial this address over ws(_WITHOUT_ PROTECTION) instead of over Datagram connection")
 	flag.BoolVar(&UseUDPPolyMasking, "UseUDPPolyMasking", false, "Mask UDP packet to avoid matching")
@@ -69,6 +71,11 @@ func main() {
 	if NetworkBuffering != 0 {
 		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
+	}
+
+	if UDPHandShakeMaskingSize != 0 {
+		ctxv := &interfaces.ExtraOptionsUsePacketArmorValue{PacketArmorPaddingTo: UDPHandShakeMaskingSize, UsePacketArmor: true}
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsUsePacketArmor, ctxv)
 	}
 
 	uc := udptlssctp.NewUdptlsSctpClientDirect(address, password, ctx)

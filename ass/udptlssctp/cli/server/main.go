@@ -21,6 +21,7 @@ func main() {
 	var LicenseRollOnly bool
 
 	var NetworkBuffering int
+	var UDPHandShakeMaskingSize int
 
 	var UseUDPPolyMasking bool
 
@@ -33,6 +34,7 @@ func main() {
 	flag.BoolVar(&LicenseRollOnly, "LicenseRollOnly", false, "Show License and Credit")
 
 	flag.IntVar(&NetworkBuffering, "NetworkBuffering", 0, "HTTP Network Buffering Amount(apply to HTTP transport only)")
+	flag.IntVar(&UDPHandShakeMaskingSize, "UDPHandShakeMaskingSize", 0, "UDP Handshake Masking Size")
 
 	flag.BoolVar(&UseUDPPolyMasking, "UseUDPPolyMasking", false, "Mask UDP packet to avoid matching")
 
@@ -47,6 +49,11 @@ func main() {
 	if NetworkBuffering != 0 {
 		ctxv := &interfaces.ExtraOptionsHTTPNetworkBufferSizeValue{NetworkBufferSize: NetworkBuffering}
 		ctx = context.WithValue(ctx, interfaces.ExtraOptionsHTTPNetworkBufferSize, ctxv)
+	}
+
+	if UDPHandShakeMaskingSize != 0 {
+		ctxv := &interfaces.ExtraOptionsUsePacketArmorValue{PacketArmorPaddingTo: UDPHandShakeMaskingSize, UsePacketArmor: true}
+		ctx = context.WithValue(ctx, interfaces.ExtraOptionsUsePacketArmor, ctxv)
 	}
 
 	if UseUDPPolyMasking {
