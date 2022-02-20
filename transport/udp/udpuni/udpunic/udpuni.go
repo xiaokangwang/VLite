@@ -77,7 +77,7 @@ func (uuc *UdpUniClient) Connect(ctx context.Context) (net.Conn, error, context.
 	packetArmorPaddingTo := 0
 	packetArmorVal := ctx.Value(interfaces.ExtraOptionsUsePacketArmor)
 	if packetArmorVal != nil {
-		packetArmorVal := packetArmorVal.(interfaces.ExtraOptionsUsePacketArmorValue)
+		packetArmorVal := packetArmorVal.(*interfaces.ExtraOptionsUsePacketArmorValue)
 		if packetArmorVal.UsePacketArmor {
 			packetArmorPaddingTo = packetArmorVal.PacketArmorPaddingTo
 		}

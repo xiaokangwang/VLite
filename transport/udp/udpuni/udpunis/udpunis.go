@@ -41,7 +41,7 @@ func (uus *UdpUniServer) Connection(conn net.Conn, ctx context.Context) context.
 	usePacketArmor := false
 	packetArmorVal := ctx.Value(interfaces.ExtraOptionsUsePacketArmor)
 	if packetArmorVal != nil {
-		packetArmorVal := packetArmorVal.(interfaces.ExtraOptionsUsePacketArmorValue)
+		packetArmorVal := packetArmorVal.(*interfaces.ExtraOptionsUsePacketArmorValue)
 		if packetArmorVal.UsePacketArmor {
 			usePacketArmor = true
 		}
@@ -70,16 +70,17 @@ func (uus *UdpUniServer) Connection(conn net.Conn, ctx context.Context) context.
 
 	ctx = context.WithValue(ctx, interfaces.ExtraOptionsUniConnAttrib, univ)
 
-	if usePacketArmor {
-		data, err := uus.armor.Pack([]byte(initdata), len(InitialData))
-		if err != nil {
-			fmt.Println("Unable to reply initial data")
-			return nil
-		}
-		conn.Write(data)
-	} else {
-		conn.Write([]byte(initdata))
-	}
+	/*
+		if usePacketArmor {
+			data, err := uus.armor.Pack([]byte(initdata), len(InitialData))
+			if err != nil {
+				fmt.Println("Unable to reply initial data")
+				return nil
+			}
+			conn.Write(data)
+		} else {
+			conn.Write([]byte(initdata))
+		}*/
 
 	return uus.upper.Connection(&udpUniClientProxy{conn: conn, initBuf: []byte(initdata),
 		armor: uus.armor, useArmoredPacket: usePacketArmor}, ctx)
@@ -103,12 +104,13 @@ func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 		if uucp.useArmoredPacket {
 			data, err := uucp.armor.Unpack(b[:n])
 			if err != nil {
-				return
+				return n, nil
 			}
 			if reflect.DeepEqual(data, uucp.initBuf) {
 				data, err := uucp.armor.Pack(data, n)
 				if err != nil {
-					return
+					fmt.Println(err)
+					continue
 				}
 				uucp.Write(data)
 				continue

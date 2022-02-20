@@ -25,6 +25,7 @@ type PacketArmor struct {
 func (a *PacketArmor) getKey(isUp bool) (cipher.AEAD, error) {
 	hasher := sha3.NewCShake128(nil, []byte(a.salt))
 	hasher.Write([]byte(a.password))
+
 	if isUp == a.isClient {
 		hasher.Write([]byte("U"))
 	} else {
