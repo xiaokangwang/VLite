@@ -58,6 +58,8 @@ type connImpl struct {
 }
 
 func (c connImpl) ReadFrom(b []byte) (n int, addr net.Addr, err error) {
+	timer := time.NewTimer(time.Second * 1200)
+	defer timer.Stop()
 	select {
 	case by, more := <-c.readchan:
 		if !more {
@@ -65,7 +67,7 @@ func (c connImpl) ReadFrom(b []byte) (n int, addr net.Addr, err error) {
 		}
 		copy(b, by.Payload)
 		return len(by.Payload), by.Source, nil
-	case <-time.Tick(time.Second * 1200):
+	case <-timer.C:
 		return 0, nil, io.ErrClosedPipe
 	}
 
