@@ -154,6 +154,8 @@ type udpUniClientProxy struct {
 	conn           net.Conn
 	armor          *packetarmor.PacketArmor
 	shouldUseArmor bool
+
+	recvCount int
 }
 
 func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
@@ -164,14 +166,17 @@ func (uucp *udpUniClientProxy) Read(b []byte) (n int, err error) {
 	}
 	for {
 		n, err = uucp.conn.Read(b)
-		if uucp.shouldUseArmor {
-			_, err := uucp.armor.Unpack(b[:n])
-			if err == nil {
-				continue
-			}
-		} else {
-			if reflect.DeepEqual(b[:n], []byte(uucp.token)) {
-				continue
+		uucp.recvCount++
+		if uucp.recvCount <= 300 {
+			if uucp.shouldUseArmor {
+				_, err := uucp.armor.Unpack(b[:n])
+				if err == nil {
+					continue
+				}
+			} else {
+				if reflect.DeepEqual(b[:n], []byte(uucp.token)) {
+					continue
+				}
 			}
 		}
 
