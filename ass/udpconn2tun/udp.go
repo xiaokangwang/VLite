@@ -1,6 +1,7 @@
 package udpconn2tun
 
 import (
+	"fmt"
 	"github.com/xiaokangwang/VLite/interfaces"
 	"io"
 	"net"
@@ -31,14 +32,19 @@ func (u *UDPConn2Tun) RxLoop() {
 	for {
 		select {
 		case pack := <-u.LocalTxToTun:
-			v, ok := u.remoteConnTracker.Load(pack.Dest.String())
+			v, ok := u.remoteConnTracker.Load(pack.Dest.Port)
 			if !ok {
 				//We cannot process this packet and it have to be discarded
 				continue
 			}
 
 			vn := v.(*connImpl)
-			vn.readchan <- pack
+			select {
+			case vn.readchan <- pack:
+			default:
+				fmt.Println("packet discarded: UDPConn2Tun")
+			}
+
 		}
 	}
 }
@@ -47,7 +53,7 @@ func (u *UDPConn2Tun) DialUDP(ouraddr net.UDPAddr) net.PacketConn {
 	imp.remoteAddr = &ouraddr
 	imp.readchan = make(chan interfaces.UDPPacket, 8)
 	imp.server = u
-	u.remoteConnTracker.Store(ouraddr.String(), imp)
+	u.remoteConnTracker.Store(ouraddr.Port, imp)
 	return imp
 }
 
@@ -75,9 +81,11 @@ func (c connImpl) ReadFrom(b []byte) (n int, addr net.Addr, err error) {
 
 func (c connImpl) WriteTo(b []byte, addr net.Addr) (n int, err error) {
 
-	if addr.(*net.UDPAddr).IP.To4() == nil {
+	if addr.(*net.UDPAddr).IP.To4() != nil {
+		XSource := c.remoteAddr.(*net.UDPAddr)
+		XSource.IP = net.IPv4zero
 		pack := interfaces.UDPPacket{
-			Source:  c.remoteAddr.(*net.UDPAddr),
+			Source:  XSource,
 			Dest:    addr.(*net.UDPAddr),
 			Payload: b,
 		}
