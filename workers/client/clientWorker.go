@@ -131,7 +131,9 @@ func (ucc *UDPClientContext) pingRoutine() {
 			}
 
 			if t > 180 {
-				os.Exit(0)
+				if ucc.context.Value(interfaces.ExtraOptionsDisableAutoQuitForClient) == nil {
+					os.Exit(0)
+				}
 			}
 
 			if shouldPingBeSend {
