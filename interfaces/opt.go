@@ -108,3 +108,5 @@ type ExtraOptionsUsePacketArmorValue struct {
 	PacketArmorPaddingTo int
 	UsePacketArmor       bool
 }
+
+const ExtraOptionsDisableAutoQuitForClient = "ExtraOptionsDisableAutoQuitForClient"
