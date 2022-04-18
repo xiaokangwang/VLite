@@ -68,20 +68,8 @@ func (u *udpServer) Listener() {
 			conn = connx.(*connImpl)
 		} else {
 			usageConn := conn
-			//usageConn := masker2conn.NewMaskerAdopter(prependandxor.GetPrependAndXorMask(string(u.masking), []byte{0x1f, 0x0d}), conn)
-			connid := []byte(conn.remoteAddr.String())
-			connctx := context.WithValue(u.ctx, interfaces.ExtraOptionsConnID, connid)
-			connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
-			connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: bm[:c]})
-			var usageConnT net.Conn
-			usageConnT = usageConn
-			if v := u.ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v != nil && v.(bool) == true {
-				masker := prependandxor.GetPrependAndPolyXorMask(string(u.masking), []byte{})
-				demaskbuf := bytes.NewBuffer(nil)
-				masker.UnMask(bytes.NewReader(bm[:c]), demaskbuf)
-				connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: demaskbuf.Bytes()})
-				usageConnT = masker2conn.NewMaskerAdopter(masker, usageConn)
-			}
+			connid := conn.remoteAddr.String()
+			usageConnT, connctx := PrepareIncomingUDPConnection(usageConn, u.ctx, bm[:c], connid)
 			connctx = u.under.Connection(usageConnT, connctx)
 			//Should use connctx
 			if connctx == nil {
@@ -96,6 +84,24 @@ func (u *udpServer) Listener() {
 		}
 
 	}
+}
+
+func PrepareIncomingUDPConnection(conn net.Conn, ctx context.Context, initialData []byte, connID string) (net.Conn, context.Context) {
+	connctx := context.WithValue(ctx, interfaces.ExtraOptionsConnID, []byte(connID))
+	connctx = context.WithValue(connctx, interfaces.ExtraOptionsMessageBusByConn, ibus.NewMessageBus())
+	connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: initialData})
+	if v := ctx.Value(interfaces.ExtraOptionsUDPShouldMask); v != nil && v.(bool) == true {
+		masking := ""
+		if v := ctx.Value(interfaces.ExtraOptionsUDPMask); v != nil {
+			masking = v.(string)
+		}
+		masker := prependandxor.GetPrependAndPolyXorMask(string(masking), []byte{})
+		demaskbuf := bytes.NewBuffer(nil)
+		masker.UnMask(bytes.NewReader(initialData), demaskbuf)
+		connctx = context.WithValue(connctx, interfaces.ExtraOptionsUDPInitialData, &interfaces.ExtraOptionsUDPInitialDataValue{Data: demaskbuf.Bytes()})
+		conn = masker2conn.NewMaskerAdopter(masker, conn)
+	}
+	return conn, connctx
 }
 
 type connImpl struct {
