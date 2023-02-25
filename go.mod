@@ -27,10 +27,9 @@ require (
 	github.com/txthinking/socks5 v0.0.0-20200327133705-caf148ab5e9d
 	github.com/txthinking/x v0.0.0-20200330144832-5ad2416896a9 // indirect
 	github.com/xtaci/smux v1.5.12
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
-	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.7.0
 )
-
 
 replace github.com/FlowerWrong/water => ./vendor2/github.com/FlowerWrong/water
 
