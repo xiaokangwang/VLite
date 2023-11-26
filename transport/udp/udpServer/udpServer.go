@@ -141,13 +141,13 @@ func (c connImpl) RemoteAddr() net.Addr {
 }
 
 func (c connImpl) SetDeadline(t time.Time) error {
-	panic("implement me")
+	return nil
 }
 
 func (c connImpl) SetReadDeadline(t time.Time) error {
-	panic("implement me")
+	return nil
 }
 
 func (c connImpl) SetWriteDeadline(t time.Time) error {
-	panic("implement me")
+	return nil
 }
