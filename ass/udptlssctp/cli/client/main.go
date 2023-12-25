@@ -9,7 +9,6 @@ import (
 	"github.com/xiaokangwang/VLite/ass/socksinterface"
 	"github.com/xiaokangwang/VLite/ass/udptlssctp"
 	"github.com/xiaokangwang/VLite/interfaces"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
